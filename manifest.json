@@ -1,0 +1,21 @@
+{
+  "name": "WAT / CP Suite",
+  "short_name": "WAT_CP",
+  "description": "半導體測試數據監控與晶圓熱圖分析工具",
+  "start_url": "WAT_CP_Suite.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#1a2332",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
