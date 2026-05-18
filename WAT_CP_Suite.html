@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WAT / CP Suite</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    /* ── App Shell ── */
+    body {
+      margin: 0;
+      background: #f0f2f5;
+      font-family: "Segoe UI", "Microsoft JhengHei", Arial, sans-serif;
+      font-size: 14px;
+      color: #1f2a28;
+    }
+
+    /* ── Top Tab Bar ── */
+    .app-header {
+      background: #1a2332;
+      padding: 0 20px;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .app-title {
+      color: #7ecbbd;
+      font-weight: 700;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      padding-right: 24px;
+      border-right: 1px solid #2e3f56;
+      margin-right: 8px;
+      letter-spacing: 0.3px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: #8899aa;
+      padding: 14px 22px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color .18s, border-color .18s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: #c8dde9; }
+    .tab-btn.active {
+      color: #7ecbbd;
+      border-bottom-color: #7ecbbd;
+      font-weight: 700;
+    }
+
+    /* ── Tab Pages ── */
+    .tab-page { display: none; }
+    .tab-page.active { display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
+
+    /* ═══════════════════════════════════════
+       PAGE 1 — WAT Monitor
+    ═══════════════════════════════════════ */
+    #page-wat {
+      padding: 18px 20px;
+      gap: 16px;
+    }
+
+    /* Controls row on top */
+    .wat-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .wat-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 16px;
+    }
+    .wat-card-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      margin-bottom: 12px;
+      color: #1a2332;
+    }
+
+    /* Chart area below */
+    .wat-chart-area {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+    .wat-chart-header {
+      background: #fff;
+      border-bottom: 1px solid #eee;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    #chartWrapper {
+      height: 420px;
+      background: white;
+      padding: 10px 16px;
+    }
+
+    /* WAT form styles */
+    .card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 0; border: none; }
+    .card-header { background: #fff; font-weight: bold; border-bottom: 1px solid #eee; border-radius: 10px 10px 0 0 !important; }
+    .debug-panel {
+      background: #1a2332;
+      color: #7ecbbd;
+      font-family: 'Consolas', monospace;
+      font-size: 11.5px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+    .status-msg { font-size: 0.82rem; margin-top: 4px; display: block; }
+    #partNoSelect { min-height: 110px; font-size: 0.88rem; }
+    #partNoSelect option { padding: 3px 6px; cursor: pointer; }
+    #partNoSelect option:checked {
+      background: #0d6efd linear-gradient(0deg, #0d6efd 0%, #0d6efd 100%);
+      color: white;
+    }
+    .select-hint { font-size: 0.72rem; color: #6c757d; margin-top: 3px; }
+    .legend-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #f5f7fa; border: 1px solid #dee2e6; border-radius: 20px;
+      padding: 2px 9px; font-size: 0.75rem; margin: 2px;
+    }
+    .legend-swatch { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+    .section-divider { border-top: 1px solid #e9ecef; margin: 10px 0 8px; }
+    .shared-badge { font-size: 0.7rem; background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; border-radius: 4px; padding: 1px 6px; margin-left: 5px; vertical-align: middle; }
+    #importProgress { display: none; }
+
+    /* ═══════════════════════════════════════
+       PAGE 2 — Wafer Heatmap
+    ═══════════════════════════════════════ */
+    #page-heatmap {
+      flex-direction: column;
+    }
+
+    /* Controls top panel */
+    .hm-controls {
+      background: #fff;
+      border-bottom: 1px solid #dde5e0;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .hm-group {
+      padding: 12px 14px;
+      border: 1px solid #d8e4de;
+      border-radius: 8px;
+      background: #fafcfa;
+    }
+    .hm-group h2 {
+      margin: 0 0 10px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #1a2e28;
+    }
+    .hm-group label {
+      display: block;
+      margin: 8px 0 4px;
+      color: #5a706a;
+      font-size: 11.5px;
+    }
+    .hm-group input[type="text"],
+    .hm-group input[type="number"],
+    .hm-group select {
+      width: 100%;
+      height: 32px;
+      padding: 5px 8px;
+      border: 1px solid #b5c8c0;
+      border-radius: 6px;
+      background: #fff;
+      font: inherit;
+      font-size: 13px;
+    }
+    .hm-group input[type="file"] { width: 100%; font-size: 12px; }
+    .hm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .hm-buttons { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .hm-btn {
+      height: 32px;
+      padding: 0 11px;
+      border: 1px solid #aab8b2;
+      border-radius: 6px;
+      background: #fff;
+      color: #1f2a28;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .hm-btn:hover { background: #f0f4f2; }
+    .hm-btn.primary { background: #126c5a; border-color: #126c5a; color: #fff; }
+    .hm-btn.primary:hover { background: #0d5547; }
+    .hm-btn:disabled { opacity: .45; cursor: default; }
+    .hm-status { min-height: 18px; color: #5a706a; font-size: 12px; line-height: 1.45; margin-top: 6px; }
+    .hm-status.error { color: #a13b2f; }
+    .preset {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      margin: 0 0 5px;
+      padding: 4px 7px;
+      border: 1px solid #d8e0dc;
+      border-radius: 6px;
+      background: #fff;
+      color: #2b3935;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .wafer-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 3px;
+      max-height: 120px;
+      overflow: auto;
+      padding: 5px;
+      border: 1px solid #d0dcd8;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .wafer-check {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #31403b;
+      font-size: 11.5px;
+    }
+
+    /* Canvas stage */
+    .hm-stage {
+      flex: 1;
+      padding: 16px 20px;
+      overflow: auto;
+      background: #f0f2f5;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .canvas-shell {
+      display: inline-block;
+      padding: 14px;
+      border: 1px solid #cfd8d3;
+      border-radius: 10px;
+      background: #e8efe8;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    canvas { display: block; background: #fff; }
+    .hm-empty {
+      display: grid;
+      place-items: center;
+      min-height: 280px;
+      min-width: 520px;
+      color: #7a9990;
+      border: 2px dashed #b7c3bd;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 15px;
+    }
+
+    /* Top status bar for heatmap */
+    .hm-topbar {
+      background: #1a2332;
+      color: #7ecbbd;
+      padding: 7px 18px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    @media (max-width: 1100px) {
+      .wat-controls { grid-template-columns: 1fr; }
+      .hm-controls { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 700px) {
+      .hm-controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── App Header with Tabs ── -->
+<div class="app-header">
+  <div class="app-title">🔬 WAT / CP Suite</div>
+  <button class="tab-btn active" onclick="switchTab('wat', this)">📊 WAT Monitor</button>
+  <button class="tab-btn" onclick="switchTab('heatmap', this)">🌡 Wafer Heatmap</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 1 — WAT Monitor v2
+═══════════════════════════════════════ -->
+<div id="page-wat" class="tab-page active">
+
+  <!-- ── Top: Control Cards ── -->
+  <div class="wat-controls">
+
+    <!-- Generate Summary Card -->
+    <div class="wat-card">
+      <div class="wat-card-title">📁 Generate WAT Summary</div>
+
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">1. Mapping File (XLSX) <span style="font-weight:400;color:#6c757d;font-size:0.78rem;">— default: Mapping_Form.xlsx</span></label>
+      <input type="file" id="mappingFileGen" class="form-control form-control-sm mb-1" accept=".xlsx,.xls,.csv">
+      <span id="mapStatusGen" class="status-msg text-muted">⏳ Loading default mapping...</span>
+
+      <div class="section-divider"></div>
+
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">2. WAT Log Folder</label>
+      <input type="file" id="watLogFolder" class="form-control form-control-sm mb-1"
+          webkitdirectory directory multiple accept="">
+      <span id="folderStatus" class="status-msg text-muted">No folder selected.</span>
+
+      <div id="importProgress" class="mt-2">
+        <div class="progress" style="height:5px">
+          <div id="importBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+        </div>
+        <small id="importMsg" class="text-muted">Processing...</small>
+      </div>
+
+      <button id="btnGenerateSummary" class="btn btn-success w-100 mt-3" disabled>
+        ⬇ Generate &amp; Download WAT_Summary
+      </button>
+    </div>
+
+    <!-- Plot Card -->
+    <div class="wat-card">
+      <div class="wat-card-title">📈 Plot</div>
+
+      <div class="mb-2 p-2 rounded" style="background:#f0f8ff; border:1px solid #cce5ff; font-size:0.83rem;">
+        <span class="fw-bold">Mapping File</span>
+        <span class="shared-badge">shared from Generate section</span>
+        <span id="mapStatusPlot" class="d-block mt-1 text-muted">Load mapping in section above.</span>
+        <div class="mt-2" style="border-top:1px solid #cce5ff; padding-top:8px;">
+          <label style="font-size:0.78rem; color:#6c757d; margin-bottom:3px; display:block;">或另選 Mapping File：</label>
+          <input type="file" id="mappingFilePlot" class="form-control form-control-sm" accept=".xlsx,.xls,.csv">
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">1. Summary File (CSV / XLSX)</label>
+      <input type="file" id="summaryFile" class="form-control form-control-sm mb-1" accept=".csv,.xlsx,.xls">
+      <span id="sumStatus" class="status-msg text-muted">No file loaded.</span>
+
+      <div class="section-divider"></div>
+
+      <div class="row g-2 align-items-end">
+        <div class="col-6">
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">2. Device</label>
+          <select id="deviceSelect" class="form-select form-select-sm" disabled>
+            <option value="">-- Select Device --</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">3. Y-Axis</label>
+          <select id="yAxisSelect" class="form-select form-select-sm">
+            <option value="Yield(%)" selected>Yield (%)</option>
+            <option value="IR(18V)">IR(18V)</option>
+            <option value="IR">IR</option>
+            <option value="IR(22V)">IR(22V)</option>
+            <option value="BVR(500uA)">BVR(500uA)</option>
+            <option value="BVR(5mA)">BVR(5mA)</option>
+            <option value="BVR(10mA)">BVR(10mA)</option>
+            <option value="Vf(50mA)">Vf(50mA)</option>
+            <option value="Vf(260mA)">Vf(260mA)</option>
+            <option value="Vf(3A)">Vf(3A)</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="fw-bold mb-1 mt-2" style="font-size:0.85rem;">Part No <span class="fw-normal text-muted">(multi-select)</span></label>
+      <select id="partNoSelect" class="form-select mb-1" multiple disabled></select>
+      <div class="select-hint">Ctrl+Click (Win) / Cmd+Click (Mac) to select multiple</div>
+
+      <div class="d-flex gap-2 mt-2">
+        <button id="btnSelectAll" class="btn btn-outline-secondary btn-sm" disabled>Select All</button>
+        <button id="btnGenerate" class="btn btn-primary btn-sm flex-grow-1" disabled>Display Chart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bottom: Chart Area ── -->
+  <div class="wat-chart-area">
+    <div class="wat-chart-header">
+      <span id="chartTitle">Yield Distribution</span>
+      <div class="d-flex align-items-center gap-2">
+        <div id="legendChips" class="d-flex flex-wrap justify-content-end"></div>
+        <button id="btnExportPng" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;" disabled>
+          🖼 Export PNG
+        </button>
+      </div>
+    </div>
+    <div id="chartWrapper">
+      <canvas id="yieldChart"></canvas>
+    </div>
+  </div>
+
+  <!-- System Log -->
+  <div>
+    <div style="font-size:0.8rem; font-weight:600; color:#556; margin-bottom:5px;">System Log</div>
+    <div id="debugLog" class="debug-panel">System ready...</div>
+  </div>
+
+</div><!-- /page-wat -->
+
+
+<!-- ═══════════════════════════════════════
+     PAGE 2 — Wafer Heatmap
+═══════════════════════════════════════ -->
+<div id="page-heatmap" class="tab-page">
+
+  <!-- Status bar -->
+  <div class="hm-topbar">
+    <span>📡</span>
+    <span id="topStatus">No file loaded.</span>
+  </div>
+
+  <!-- ── Top: All Control Groups ── -->
+  <div class="hm-controls">
+
+    <!-- ZIP Merge -->
+    <div class="hm-group">
+      <h2>ZIP 合併 CSV</h2>
+      <label for="zipFile">ZIP 檔</label>
+      <input id="zipFile" type="file" accept=".zip,application/zip">
+      <label for="headerFile">表頭 CSV</label>
+      <input id="headerFile" type="file" accept=".csv,text/csv">
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button class="hm-btn" id="btnLLD" style="background:#e8f4fd;border-color:#90c8f0;color:#1565a8;font-weight:600;flex:1;" title="帶入 LLD 表頭">LLD</button>
+        <button class="hm-btn" id="btnULLD" style="background:#fef3e2;border-color:#f0b840;color:#8a5a00;font-weight:600;flex:1;" title="帶入 ULLD 表頭">ULLD</button>
+      </div>
+      <div class="hm-status" id="headerPresetStatus" style="font-size:11px;min-height:16px;"></div>
+      <div class="hm-buttons">
+        <button class="hm-btn" id="mergeBtn">合併並下載 CSV</button>
+      </div>
+      <div class="hm-status" id="mergeStatus">取每個 CSV 檔名第 9-10 字元當 Wafer_ID，略過前 35 列。</div>
+    </div>
+
+    <!-- Load CSV -->
+    <div class="hm-group">
+      <h2>載入 CSV</h2>
+      <input id="csvFile" type="file" accept=".csv,text/csv">
+      <div class="hm-status" id="fileStatus">請選擇合併後的 CSV。</div>
+
+      <div class="section-divider" style="border-top:1px solid #d8e4de; margin:10px 0 8px;"></div>
+
+      <h2 style="margin-top:0;">Heatmap</h2>
+      <label for="hmTitle">標題</label>
+      <input id="hmTitle" type="text" value="Wafer Heatmap">
+      <label for="column">測項</label>
+      <select id="column"></select>
+      <label>預設範圍</label>
+      <div id="presets"></div>
+      <div class="hm-row">
+        <div>
+          <label for="lo">下限</label>
+          <input id="lo" type="number" step="any" value="0">
+        </div>
+        <div>
+          <label for="hi">上限</label>
+          <input id="hi" type="number" step="any" value="45">
+        </div>
+      </div>
+      <div class="hm-buttons">
+        <button class="hm-btn primary" id="renderBtn" disabled>產生</button>
+        <button class="hm-btn" id="downloadBtn" disabled>下載 PNG</button>
+      </div>
+    </div>
+
+    <!-- Single Wafer Zoom -->
+    <div class="hm-group">
+      <h2>單片放大</h2>
+      <label for="mode">模式</label>
+      <select id="mode">
+        <option value="overview">總覽</option>
+        <option value="detail">單片含數值</option>
+      </select>
+      <label>片號</label>
+      <div class="wafer-list" id="waferList"></div>
+      <div class="hm-buttons">
+        <button class="hm-btn" id="selectAllBtn" disabled>全選</button>
+        <button class="hm-btn" id="selectNoneBtn" disabled>全清</button>
+      </div>
+    </div>
+
+    <!-- Placeholder / info -->
+    <div class="hm-group" style="background:#f5faf8;">
+      <h2>使用說明</h2>
+      <div style="font-size:12px; color:#4a6660; line-height:1.7;">
+        <p style="margin:0 0 8px;">① 選擇 ZIP 檔與表頭 CSV，合併後下載 merged.csv</p>
+        <p style="margin:0 0 8px;">② 或直接載入已合併的 CSV 檔</p>
+        <p style="margin:0 0 8px;">③ 選擇測項、設定上下限，按「產生」</p>
+        <p style="margin:0 0 8px;">④ 切換「單片含數值」模式可勾選片號放大</p>
+        <p style="margin:0;">⑤ 按「下載 PNG」儲存圖片</p>
+      </div>
+    </div>
+
+  </div><!-- /hm-controls -->
+
+  <!-- ── Bottom: Canvas Stage ── -->
+  <div class="hm-stage">
+    <div id="hmEmpty" class="hm-empty">載入 CSV 後會在這裡產生 heatmap。</div>
+    <div id="canvasShell" class="canvas-shell" hidden>
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+</div><!-- /page-heatmap -->
+
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// PAGE 1 — WAT Monitor v2
+// ══════════════════════════════════════════════════════════════
+
+// ── State ────────────────────────────────────────────────────
+let mappingData = [];
+let summaryData = [];
+let chartInstance = null;
+let genMappingData = [];
+let watLotFiles = {};
+
+// ── Logger ───────────────────────────────────────────────────
+const log = (msg) => {
+    const div = document.getElementById('debugLog');
+    div.innerHTML += `<div>> ${msg}</div>`;
+    div.scrollTop = div.scrollHeight;
+};
+
+// ── Colour & marker palette ──────────────────────────────────
+const PALETTE = [
+    '#e6194b','#3cb44b','#4363d8','#f58231','#911eb4',
+    '#42d4f4','#f032e6','#bfef45','#fabed4','#469990',
+    '#dcbeff','#9A6324'
+];
+const SHAPES = ['circle','triangle','rect','rectRot','star','cross','crossRot','rectRounded','triangle','circle'];
+function seriesStyle(idx) {
+    return { color: PALETTE[idx % PALETTE.length], shape: SHAPES[idx % SHAPES.length] };
+}
+
+// ── Mapping helpers ──────────────────────────────────────────
+function parseMappingRaw(raw) {
+    let currentDevice = "";
+    return raw.map(row => {
+        const dVal = (row['Device'] || row['Device Part No'] || "").toString().trim();
+        const pVal = (row['Part No'] || row['Part No (3碼)'] || "").toString().trim();
+        if (dVal !== "") currentDevice = dVal;
+        return {
+            Device: currentDevice,
+            PartNo: pVal,
+            EPI: (row['EPI'] || "").toString().trim(),
+            BGBM: (row['BGBM'] || "").toString().trim()
+        };
+    }).filter(i => i.Device !== "" && i.PartNo !== "");
+}
+
+function readMappingFile(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+            callback(parseMappingRaw(raw));
+        } catch (err) {
+            log(`Error parsing mapping: ${err.message}`);
+            callback([]);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// ── SECTION 1: Generate Summary ──────────────────────────────
+document.getElementById('mappingFileGen').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    readMappingFile(file, (data) => {
+        genMappingData = data;
+        mappingData = data;
+        log(`Mapping loaded: ${data.length} entries`);
+        document.getElementById('mapStatusGen').innerText = `✅ Loaded ${data.length} mapping entries`;
+        document.getElementById('mapStatusPlot').innerText = `✅ ${data.length} entries loaded from above`;
+        document.getElementById('mapStatusPlot').className = 'mt-1 text-success d-block';
+        updateDeviceDropdown();
+        checkChartReady();
+        checkGenReady();
+    });
+});
+
+document.getElementById('watLogFolder').addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    watLotFiles = {};
+    files.forEach(file => {
+        const parts = file.webkitRelativePath.split('/');
+        if (parts.length < 2) return;
+        const lotNo = parts[parts.length - 2];
+        const name = parts[parts.length - 1].toLowerCase();
+        if (!watLotFiles[lotNo]) watLotFiles[lotNo] = {};
+        if (name.endsWith('.qc9.txt')) watLotFiles[lotNo].qc9 = file;
+        else if (name.endsWith('.dif.xls')) watLotFiles[lotNo].dif = file;
+    });
+    const lots = Object.keys(watLotFiles).sort();
+    const validLots = lots.filter(l => watLotFiles[l].qc9 && watLotFiles[l].dif);
+    document.getElementById('folderStatus').innerText =
+        `✅ Found ${validLots.length} valid lots (qc9 + dif) out of ${lots.length} folders`;
+    log(`[Gen] WAT folder: ${validLots.length} lots detected`);
+    checkGenReady();
+});
+
+function checkGenReady() {
+    const validLots = Object.keys(watLotFiles).filter(l => watLotFiles[l].qc9 && watLotFiles[l].dif);
+    document.getElementById('btnGenerateSummary').disabled = !(genMappingData.length > 0 && validLots.length > 0);
+}
+
+// ── Parse .qc9.txt ───────────────────────────────────────────
+async function parseQC9(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target.result;
+            const runOnMatch = text.match(/RUN ON\s*:\s*(\d+\s+\w+\s+\d{4}\s+[\d:]+)/);
+            const yieldMatch = text.match(/Yield\s*=\s*([\d.]+)%/);
+            const productIdMatch = text.match(/PRODUCT\s+ID\s*:\s*(\S+)/);
+            let runOn = "", yieldPct = "", partNo3 = "";
+            if (runOnMatch) {
+                const parts = runOnMatch[1].trim().split(/\s+/);
+                const months = { Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',
+                                 Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12' };
+                const day = parts[0].padStart(2,'0');
+                const mon = months[parts[1]] || '00';
+                const yr = parts[2];
+                const time = (parts[3] || '').replace(/:/g,'');
+                runOn = `${yr}${mon}${day} ${time}`;
+            }
+            if (yieldMatch) yieldPct = yieldMatch[1];
+            if (productIdMatch) { const pid = productIdMatch[1].trim(); partNo3 = pid.slice(-3); }
+            resolve({ runOn, yieldPct, partNo3 });
+        };
+        reader.readAsText(file);
+    });
+}
+
+// ── Parse .dif.xls ───────────────────────────────────────────
+async function parseDIF(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/).filter(l => l.trim());
+            const result = {};
+            lines.forEach(line => {
+                const cols = line.split('\t').map(c => c.trim());
+                if (cols.length >= 6 && cols[0] && cols[0] !== 'Parameter') result[cols[0]] = cols[5];
+            });
+            resolve(result);
+        };
+        reader.readAsText(file);
+    });
+}
+
+// ── Generate Summary ─────────────────────────────────────────
+document.getElementById('btnGenerateSummary').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = '⏳ Processing...';
+    const progressDiv = document.getElementById('importProgress');
+    const progressBar = document.getElementById('importBar');
+    const progressMsg = document.getElementById('importMsg');
+    progressDiv.style.display = 'block';
+    const validLots = Object.keys(watLotFiles).filter(l => watLotFiles[l].qc9 && watLotFiles[l].dif).sort();
+    const rows = [];
+    const difParams = ['IR(18V)', 'IR', 'IR(22V)', 'BVR(500uA)', 'BVR(5mA)', 'BVR(10mA)', 'Vf(50mA)', 'Vf(260mA)', 'Vf(3A)'];
+    for (let i = 0; i < validLots.length; i++) {
+        const lot = validLots[i];
+        progressMsg.textContent = `Processing ${lot} (${i+1}/${validLots.length})...`;
+        progressBar.style.width = `${Math.round((i / validLots.length) * 100)}%`;
+        const qc9 = await parseQC9(watLotFiles[lot].qc9);
+        const dif = await parseDIF(watLotFiles[lot].dif);
+        const mappingEntry = genMappingData.find(m => m.PartNo === qc9.partNo3);
+        const deviceMapping = mappingEntry ? mappingEntry.Device : '';
+        const epi = mappingEntry ? mappingEntry.EPI : '';
+        const bgbm = mappingEntry ? mappingEntry.BGBM : '';
+        if (mappingEntry) log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → Device="${deviceMapping}"`);
+        else log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → ⚠ no mapping match`);
+        const row = { 'Lot no.': lot, 'RUN ON': qc9.runOn, 'Yield(%)': qc9.yieldPct,
+                      'Device Mapping': deviceMapping, 'Part No': qc9.partNo3, 'EPI': epi, 'BGBM': bgbm };
+        difParams.forEach(p => { row[p] = dif[p] !== undefined ? dif[p] : ''; });
+        rows.push(row);
+        log(`[Gen] ${lot}: RUN ON=${qc9.runOn}, Yield=${qc9.yieldPct}%`);
+    }
+    progressBar.style.width = '100%';
+    progressMsg.textContent = `Done! Building XLSX...`;
+    buildSummaryXLSX(rows);
+    progressDiv.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '⬇ Generate & Download WAT_Summary';
+});
+
+function buildSummaryXLSX(rows) {
+    const wb = XLSX.utils.book_new();
+    const headers = ['Lot no.','RUN ON','Yield(%)','Device Mapping','Part No','EPI','BGBM',
+                     'IR(18V) ','IR','IR(22V) ','BVR(500uA) ','BVR(5mA) ','BVR(10mA) ','Vf(50mA) ','Vf(260mA) ','Vf(3A) '];
+    const wsData = [headers];
+    rows.forEach(r => {
+        wsData.push(headers.map(h => {
+            const key = h.trim();
+            for (const k of Object.keys(r)) { if (k.trim() === key) return r[k]; }
+            return '';
+        }));
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:10},{wch:18},{wch:10},{wch:18},{wch:10},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:14},{wch:12},{wch:14},{wch:10}];
+    const yellowFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
+    const yellowCols = [3, 4, 5, 6];
+    for (let c = 0; c < headers.length; c++) {
+        const cellAddr = XLSX.utils.encode_cell({ r: 0, c });
+        if (!ws[cellAddr]) ws[cellAddr] = { v: headers[c], t: 's' };
+        ws[cellAddr].s = { font: { bold: true, name: 'Arial', sz: 10 },
+            fill: yellowCols.includes(c) ? yellowFill : { patternType: 'solid', fgColor: { rgb: 'D9E1F2' } },
+            border: { top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}} },
+            alignment: { horizontal: 'center', wrapText: true } };
+    }
+    for (let r = 1; r < wsData.length; r++) {
+        for (let c = 0; c < headers.length; c++) {
+            const cellAddr = XLSX.utils.encode_cell({ r, c });
+            if (!ws[cellAddr]) ws[cellAddr] = { v: '', t: 's' };
+            ws[cellAddr].s = { font: { name: 'Arial', sz: 10 },
+                fill: yellowCols.includes(c) ? { patternType: 'solid', fgColor: { rgb: 'FFFDE7' } } : {},
+                border: { top:{style:'thin',color:{rgb:'DDDDDD'}},bottom:{style:'thin',color:{rgb:'DDDDDD'}},left:{style:'thin',color:{rgb:'DDDDDD'}},right:{style:'thin',color:{rgb:'DDDDDD'}} },
+                alignment: { horizontal: c < 3 || c === 8 ? 'center' : 'right' } };
+        }
+    }
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const today = new Date();
+    const yyyymmdd = today.getFullYear().toString() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
+    a.download = `WAT_Summary_${yyyymmdd}.xlsx`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    log(`[Gen] WAT_Summary_${yyyymmdd}.xlsx generated with ${rows.length} rows. Download started.`);
+}
+
+// ── SECTION 2: Plot ──────────────────────────────────────────
+// Plot card: own mapping file picker (overrides shared mapping)
+document.getElementById('mappingFilePlot').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    readMappingFile(file, (data) => {
+        mappingData = data;
+        log(`[Plot] Mapping loaded: ${data.length} entries from ${file.name}`);
+        document.getElementById('mapStatusPlot').innerText = `✅ ${data.length} entries loaded from ${file.name}`;
+        document.getElementById('mapStatusPlot').className = 'd-block mt-1 text-success';
+        updateDeviceDropdown();
+        checkChartReady();
+    });
+});
+document.getElementById('summaryFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    log(`Reading Summary: ${file.name}`);
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv') {
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: function(results) {
+                summaryData = results.data;
+                log(`Summary loaded: ${summaryData.length} records`);
+                document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
+                checkChartReady();
+            }
+        });
+    } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const sheetName = wb.SheetNames.includes('Summary') ? 'Summary' : wb.SheetNames[0];
+                summaryData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
+                log(`Summary loaded: ${summaryData.length} records (sheet: ${sheetName})`);
+                document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
+                checkChartReady();
+            } catch (err) { log(`Error parsing summary: ${err.message}`); }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+});
+
+function checkChartReady() {
+    if (mappingData.length > 0 && summaryData.length > 0) {
+        document.getElementById('deviceSelect').disabled = false;
+        document.getElementById('btnGenerate').disabled = false;
+        log("Chart UI ready.");
+    }
+}
+
+function updateDeviceDropdown() {
+    const ds = document.getElementById('deviceSelect');
+    const uniqueDevices = [...new Set(mappingData.map(m => m.Device))].sort();
+    ds.innerHTML = '<option value="">-- Select Device --</option>';
+    uniqueDevices.forEach(d => ds.add(new Option(d, d)));
+    if (uniqueDevices.length > 0) ds.disabled = false;
+}
+
+document.getElementById('deviceSelect').addEventListener('change', function() {
+    const ps = document.getElementById('partNoSelect');
+    const saBtn = document.getElementById('btnSelectAll');
+    const device = this.value;
+    ps.innerHTML = '';
+    if (!device) { ps.disabled = true; saBtn.disabled = true; return; }
+    const filteredParts = [...new Set(mappingData.filter(m => m.Device === device).map(m => m.PartNo))].sort();
+    filteredParts.forEach(p => ps.add(new Option(p, p)));
+    ps.disabled = false; saBtn.disabled = false;
+    log(`Device: ${device} → ${filteredParts.length} Part Nos`);
+});
+
+document.getElementById('btnSelectAll').addEventListener('click', function() {
+    const ps = document.getElementById('partNoSelect');
+    const allSelected = [...ps.options].every(o => o.selected);
+    [...ps.options].forEach(o => o.selected = !allSelected);
+    this.textContent = allSelected ? 'Select All' : 'Deselect All';
+});
+
+document.getElementById('btnGenerate').addEventListener('click', function() {
+    const dev = document.getElementById('deviceSelect').value;
+    const ps  = document.getElementById('partNoSelect');
+    const selectedParts = [...ps.options].filter(o => o.selected).map(o => o.value);
+    const yAxisCol = document.getElementById('yAxisSelect').value;
+    const yAxisLabel = document.getElementById('yAxisSelect').options[document.getElementById('yAxisSelect').selectedIndex].text;
+    if (!dev || selectedParts.length === 0) { alert("Please select a Device and at least one Part No."); return; }
+    log(`Generating chart for ${dev} / [${selectedParts.join(', ')}], Y-axis: ${yAxisCol}...`);
+    const datasets = [];
+    const legendChips = document.getElementById('legendChips');
+    legendChips.innerHTML = '';
+    let globalMin = Infinity, globalMax = -Infinity;
+    selectedParts.forEach((part, idx) => {
+        const matches = summaryData.filter(s => {
+            const deviceMatch = (s['Device Mapping']||s['Device']||"").trim() === dev;
+            const partMatch   = (s['Part No']||"").trim() === part;
+            return deviceMatch && partMatch;
+        });
+        if (matches.length === 0) { log(`Warning: No records for ${dev}/${part}`); return; }
+        const points = matches.map(m => {
+            let yVal = m[yAxisCol];
+            if (yVal === undefined || yVal === '') {
+                for (const k of Object.keys(m)) { if (k.trim() === yAxisCol.trim()) { yVal = m[k]; break; } }
+            }
+            return { x: parseDate(m['RUN ON']), y: parseFloat(yVal) };
+        }).filter(p => p.x && !isNaN(p.y)).sort((a,b) => a.x - b.x);
+        if (points.length === 0) { log(`Warning: No valid Y-axis data (${yAxisCol}) for ${dev}/${part}`); return; }
+        points.forEach(p => { if (p.x < globalMin) globalMin = p.x; if (p.x > globalMax) globalMax = p.x; });
+        const { color, shape } = seriesStyle(idx);
+        datasets.push({ label: part, data: points, backgroundColor: color + 'BB', borderColor: color,
+                        pointStyle: shape, pointRadius: 6, pointHoverRadius: 8 });
+        const chip = document.createElement('div');
+        chip.className = 'legend-chip';
+        chip.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${part}`;
+        legendChips.appendChild(chip);
+        log(`  → ${part}: ${points.length} points`);
+    });
+    if (datasets.length === 0) { alert("No data found for selected Part Nos."); return; }
+    if (yAxisCol === 'Yield(%)' && globalMin !== Infinity) {
+        datasets.push({ label: '100% Target', data: [{ x: globalMin, y: 100 }, { x: globalMax, y: 100 }],
+                        type: 'line', borderColor: 'red', borderDash: [5, 5], pointRadius: 0, fill: false, tension: 0 });
+    }
+    document.getElementById('chartTitle').textContent = `${dev} — ${yAxisLabel}`;
+    renderChart(datasets, dev, yAxisLabel, yAxisCol === 'Yield(%)');
+});
+
+function parseDate(s) {
+    if (!s) return null;
+    s = s.toString().trim();
+    if (s.length < 8) return null;
+    const yr = s.substring(0,4), mo = s.substring(4,6), dy = s.substring(6,8);
+    const rest = s.substring(8).trim().replace(/:/g,'');
+    const hr = rest.substring(0,2) || '00', mi = rest.substring(2,4) || '00', se = rest.substring(4,6) || '00';
+    const d = new Date(`${yr}-${mo}-${dy}T${hr}:${mi}:${se}`);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function renderChart(datasets, deviceLabel, yLabel, isYield) {
+    const ctx = document.getElementById('yieldChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyleWidth: 14 } },
+                title: { display: true, text: `Device: ${deviceLabel}`, font: { size: 14 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            if (ctx.dataset.label === '100% Target') return null;
+                            const d = ctx.raw;
+                            const yStr = isYield ? `${d.y}%` : d.y;
+                            return ` ${ctx.dataset.label}: ${yStr}  (${d.x instanceof Date ? d.x.toLocaleDateString() : d.x})`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { type: 'time', time: { unit: 'week' }, title: { display: true, text: 'RUN ON (Week)', font: { size: 12 } } },
+                y: { min: isYield ? 0 : undefined, max: isYield ? 120 : undefined, title: { display: true, text: yLabel, font: { size: 12 } } }
+            }
+        }
+    });
+    log(`Chart rendered: ${datasets.filter(d => d.label !== '100% Target').length} series, Y-axis: ${yLabel}`);
+    document.getElementById('btnExportPng').disabled = false;
+}
+
+document.getElementById('btnExportPng').addEventListener('click', function() {
+    if (!chartInstance) return;
+    const canvas = document.getElementById('yieldChart');
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvas.width; exportCanvas.height = canvas.height;
+    const ctx = exportCanvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    ctx.drawImage(canvas, 0, 0);
+    const today = new Date();
+    const yyyymmdd = today.getFullYear().toString() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
+    const device = document.getElementById('deviceSelect').value || 'Device';
+    const ps = document.getElementById('partNoSelect');
+    const selectedParts = [...ps.options].filter(o => o.selected).map(o => o.value);
+    const yAxisCol = document.getElementById('yAxisSelect').value;
+    const safeAxis = yAxisCol.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `${device}_${selectedParts.join('+')}_${safeAxis}_${yyyymmdd}.png`;
+    exportCanvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        log(`PNG exported: ${filename}`);
+    }, 'image/png');
+});
+
+
+// ══════════════════════════════════════════════════════════════
+// PAGE 2 — Wafer Heatmap
+// ══════════════════════════════════════════════════════════════
+
+const coordCols = new Set(["Wafer_ID", "X", "Y", "Serial", "HB", "SB"]);
+const knownColumns = ["IR0", "VF0", "VF1", "VZ0", "IDSS2", "IR2_1", "IGSS2F", "BVDSS3"];
+const presetsByColumn = {
+    IR0: [["570/550mV Gen1", 0, 45], ["570/550mV Gen2", 0, 65], ["530mV", 0, 70], ["580mV", 0, 30]],
+    VF0: [["570mV", 205, 285], ["550mV", 195, 275], ["530mV", 175, 255], ["580mV", 225, 305]],
+    VF1: [["570mV", 250, 330], ["550mV", 240, 320], ["530mV", 220, 300], ["580mV", 270, 350]],
+    VZ0: [["Default", 19.5, 22.5]],
+    IDSS2: [["Default", -90, 90]],
+    IR2_1: [["Default", -90, 90]],
+    IGSS2F: [["Default", -30, 30]],
+    BVDSS3: [["Default", 19.5, 22.5]]
+};
+
+const $ = id => document.getElementById(id);
+const hmEls = {
+    zipFile: $("zipFile"), headerFile: $("headerFile"), mergeBtn: $("mergeBtn"), mergeStatus: $("mergeStatus"),
+    csvFile: $("csvFile"), fileStatus: $("fileStatus"), topStatus: $("topStatus"),
+    title: $("hmTitle"), column: $("column"), presets: $("presets"), lo: $("lo"), hi: $("hi"),
+    renderBtn: $("renderBtn"), downloadBtn: $("downloadBtn"), mode: $("mode"), waferList: $("waferList"),
+    selectAllBtn: $("selectAllBtn"), selectNoneBtn: $("selectNoneBtn"), empty: $("hmEmpty"),
+    canvasShell: $("canvasShell"), canvas: $("canvas")
+};
+
+let hmRecords = [];
+let hmHeaders = [];
+let fileBaseName = "wafer";
+
+hmEls.mergeBtn.addEventListener("click", mergeZipCsv);
+hmEls.csvFile.addEventListener("change", loadCsvFile);
+hmEls.column.addEventListener("change", () => { applyDefaultTitle(); buildPresets(); renderIfReady(); });
+hmEls.renderBtn.addEventListener("click", renderIfReady);
+hmEls.downloadBtn.addEventListener("click", downloadPng);
+hmEls.mode.addEventListener("change", renderIfReady);
+hmEls.lo.addEventListener("change", renderIfReady);
+hmEls.hi.addEventListener("change", renderIfReady);
+hmEls.title.addEventListener("change", renderIfReady);
+hmEls.selectAllBtn.addEventListener("click", () => setAllWafers(true));
+hmEls.selectNoneBtn.addEventListener("click", () => setAllWafers(false));
+
+async function mergeZipCsv() {
+    const zipFile = hmEls.zipFile.files && hmEls.zipFile.files[0];
+    const headerFile = hmEls.headerFile.files && hmEls.headerFile.files[0];
+    if (!zipFile || !headerFile) return setMergeStatus("請先選擇 ZIP 檔與表頭 CSV。", true);
+    try {
+        hmEls.mergeBtn.disabled = true;
+        setMergeStatus("讀取 ZIP 中...", false);
+        const headerLine = firstLine(await headerFile.text()).replace(/^\uFEFF/, "");
+        if (!headerLine.trim()) throw new Error("表頭 CSV 第一列是空的。");
+        const entries = await readZipEntries(await zipFile.arrayBuffer());
+        const csvEntries = entries.filter(e => e.name.toLowerCase().endsWith(".csv") && !e.isDirectory)
+                                  .sort((a, b) => baseName(a.name).localeCompare(baseName(b.name)));
+        if (!csvEntries.length) throw new Error("ZIP 內找不到 CSV 檔。");
+        const out = [headerLine];
+        let totalRows = 0;
+        for (const entry of csvEntries) {
+            const name = baseName(entry.name);
+            const waferId = name.length >= 10 ? name.substring(8, 10) : name;
+            const lines = splitLines(await entry.text());
+            let fileRows = 0;
+            for (let i = 35; i < lines.length; i++) {
+                const raw = lines[i].replace(/\r$/, "");
+                if (!raw.trim()) continue;
+                const comma = raw.indexOf(",");
+                out.push(comma >= 0 ? waferId + raw.slice(comma) : waferId);
+                fileRows++;
+            }
+            totalRows += fileRows;
+            setMergeStatus(`處理 ${name} -> Wafer=${waferId}，寫出 ${fileRows} 列。`, false);
+        }
+        const zipBase = zipFile.name.replace(/\.[^.]+$/, "");
+        const mergedCsvContent = out.join("\r\n") + "\r\n";
+        downloadText(`${zipBase}_merged.csv`, mergedCsvContent, "text/csv;charset=utf-8");
+        // Auto-inject into 載入 CSV
+        (function() {
+          try {
+            const mergedFile = new File([mergedCsvContent], `${zipBase}_merged.csv`, { type: 'text/csv' });
+            const dt = new DataTransfer();
+            dt.items.add(mergedFile);
+            hmEls.csvFile.files = dt.files;
+            // Trigger load
+            hmEls.csvFile.dispatchEvent(new Event('change'));
+            setMergeStatus(`完成：${csvEntries.length} 個 CSV，共 ${totalRows.toLocaleString()} 列資料。已自動載入 ${zipBase}_merged.csv。`, false);
+          } catch(e) {
+            // DataTransfer may not be supported in all browsers, silent fail
+          }
+        })();
+        setMergeStatus(`完成：${csvEntries.length} 個 CSV，共 ${totalRows.toLocaleString()} 列資料。`, false);
+    } catch (err) {
+        setMergeStatus(`Error: ${err.message}`, true);
+    } finally {
+        hmEls.mergeBtn.disabled = false;
+    }
+}
+
+function setMergeStatus(text, isError) {
+    hmEls.mergeStatus.textContent = text;
+    hmEls.mergeStatus.className = isError ? "hm-status error" : "hm-status";
+}
+
+function firstLine(text) {
+    const idx = text.search(/\r?\n/);
+    return idx >= 0 ? text.slice(0, idx).replace(/\r$/, "") : text;
+}
+function splitLines(text) { return text.replace(/^\uFEFF/, "").split(/\n/); }
+function baseName(path) { const n = path.replace(/\\/g, "/"); return n.slice(n.lastIndexOf("/") + 1); }
+
+async function readZipEntries(buffer) {
+    const view = new DataView(buffer);
+    const bytes = new Uint8Array(buffer);
+    const eocd = findEocd(bytes);
+    const totalEntries = view.getUint16(eocd + 10, true);
+    const centralOffset = view.getUint32(eocd + 16, true);
+    const entries = [];
+    let offset = centralOffset;
+    for (let i = 0; i < totalEntries; i++) {
+        if (view.getUint32(offset, true) !== 0x02014b50) throw new Error("ZIP central directory 格式不正確。");
+        const flags = view.getUint16(offset + 8, true);
+        const method = view.getUint16(offset + 10, true);
+        const compressedSize = view.getUint32(offset + 20, true);
+        const uncompressedSize = view.getUint32(offset + 24, true);
+        const nameLen = view.getUint16(offset + 28, true);
+        const extraLen = view.getUint16(offset + 30, true);
+        const commentLen = view.getUint16(offset + 32, true);
+        const localOffset = view.getUint32(offset + 42, true);
+        const name = new TextDecoder((flags & 0x0800) ? "utf-8" : "utf-8").decode(bytes.slice(offset + 46, offset + 46 + nameLen));
+        entries.push({
+            name, isDirectory: name.endsWith("/"),
+            async text() {
+                const data = await extractZipData(buffer, localOffset, compressedSize, method, uncompressedSize);
+                return new TextDecoder("utf-8").decode(data);
+            }
+        });
+        offset += 46 + nameLen + extraLen + commentLen;
+    }
+    return entries;
+}
+
+function findEocd(bytes) {
+    const min = Math.max(0, bytes.length - 0xffff - 22);
+    for (let i = bytes.length - 22; i >= min; i--) {
+        if (bytes[i] === 0x50 && bytes[i+1] === 0x4b && bytes[i+2] === 0x05 && bytes[i+3] === 0x06) return i;
+    }
+    throw new Error("找不到 ZIP 結尾目錄。");
+}
+
+async function extractZipData(buffer, localOffset, compressedSize, method, uncompressedSize) {
+    const view = new DataView(buffer);
+    if (view.getUint32(localOffset, true) !== 0x04034b50) throw new Error("ZIP local header 格式不正確。");
+    const nameLen = view.getUint16(localOffset + 26, true);
+    const extraLen = view.getUint16(localOffset + 28, true);
+    const dataOffset = localOffset + 30 + nameLen + extraLen;
+    const compressed = new Uint8Array(buffer, dataOffset, compressedSize);
+    if (method === 0) return new Uint8Array(compressed);
+    if (method !== 8) throw new Error(`不支援的 ZIP 壓縮方法：${method}`);
+    if (!("DecompressionStream" in window)) throw new Error("此瀏覽器不支援 ZIP deflate 解壓，請使用新版 Chrome 或 Edge。");
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    const result = new Uint8Array(await new Response(stream).arrayBuffer());
+    if (uncompressedSize && result.length !== uncompressedSize) console.warn("ZIP size mismatch", result.length, uncompressedSize);
+    return result;
+}
+
+function downloadText(name, text, type) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = name; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function loadCsvFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    try {
+        const text = await file.text();
+        fileBaseName = file.name.replace(/\.[^.]+$/, "");
+        const parsed = parseCsv(text);
+        hmRecords = loadRecords(parsed);
+        if (!hmRecords.length) throw new Error("No records found.");
+        hmHeaders = parsed.headers;
+        const waferCount = new Set(hmRecords.map(r => r.WaferId)).size;
+        hmEls.fileStatus.textContent = `${file.name}  (${hmRecords.length.toLocaleString()} dies, ${waferCount} wafers)`;
+        hmEls.fileStatus.className = "hm-status";
+        hmEls.topStatus.textContent = hmEls.fileStatus.textContent;
+        populateColumns(); populateWafers(); applyDefaultTitle(); buildPresets();
+        enableHmControls(true); renderIfReady();
+    } catch (err) {
+        hmRecords = [];
+        enableHmControls(false);
+        hmEls.fileStatus.textContent = `Error: ${err.message}`;
+        hmEls.fileStatus.className = "hm-status error";
+        hmEls.topStatus.textContent = "CSV load failed.";
+    }
+}
+
+function parseCsv(text) {
+    const rows = [];
+    let row = [], cell = "", inQuotes = false;
+    const src = text.replace(/^\uFEFF/, "");
+    for (let i = 0; i < src.length; i++) {
+        const ch = src[i];
+        if (inQuotes) {
+            if (ch === '"' && src[i+1] === '"') { cell += '"'; i++; }
+            else if (ch === '"') inQuotes = false;
+            else cell += ch;
+        } else if (ch === '"') inQuotes = true;
+        else if (ch === ",") { row.push(cell); cell = ""; }
+        else if (ch === "\n") { row.push(cell.replace(/\r$/, "")); rows.push(row); row = []; cell = ""; }
+        else cell += ch;
+    }
+    if (cell.length || row.length) { row.push(cell.replace(/\r$/, "")); rows.push(row); }
+    const nonEmpty = rows.filter(r => r.some(v => String(v).trim() !== ""));
+    if (!nonEmpty.length) throw new Error("CSV is empty.");
+    return { headers: nonEmpty[0].map(h => h.trim()), rows: nonEmpty.slice(1) };
+}
+
+function loadRecords(parsed) {
+    const idx = name => parsed.headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
+    const idxWafer = idx("Wafer_ID"), idxX = idx("X"), idxY = idx("Y");
+    if (idxWafer < 0 || idxX < 0 || idxY < 0) throw new Error("CSV must contain Wafer_ID, X, and Y columns.");
+    const extraIndexes = parsed.headers.map((name, i) => ({ name: name.trim(), i })).filter(c => c.name && !coordCols.has(c.name));
+    return parsed.rows.map(parts => {
+        const wafer = parseInt(parts[idxWafer], 10), x = parseInt(parts[idxX], 10), y = parseInt(parts[idxY], 10);
+        if (!Number.isFinite(wafer) || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+        const extra = {};
+        for (const col of extraIndexes) extra[col.name] = parseHmNumber(parts[col.i]);
+        if (extra.IDSS2 == null && extra.IR2_1 != null) extra.IDSS2 = extra.IR2_1;
+        return { WaferId: wafer, X: x, Y: y, Extra: extra };
+    }).filter(Boolean);
+}
+
+function parseHmNumber(value) {
+    const text = value == null ? "" : String(value).trim();
+    if (!text) return null;
+    const num = Number(text);
+    return Number.isFinite(num) ? num : null;
+}
+
+function populateColumns() {
+    const usable = hmHeaders.filter(h => h && !coordCols.has(h) && hmRecords.some(r => r.Extra[h] != null));
+    usable.sort((a, b) => {
+        const ai = knownColumns.indexOf(a), bi = knownColumns.indexOf(b);
+        if (ai >= 0 || bi >= 0) return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
+        return a.localeCompare(b);
+    });
+    hmEls.column.innerHTML = "";
+    for (const col of usable) hmEls.column.add(new Option(col, col));
+    if (usable.includes("IR0")) hmEls.column.value = "IR0";
+}
+
+function populateWafers() {
+    const ids = [...new Set(hmRecords.map(r => r.WaferId))].sort((a, b) => a - b);
+    hmEls.waferList.innerHTML = "";
+    for (const id of ids) {
+        const label = document.createElement("label");
+        label.className = "wafer-check";
+        const input = document.createElement("input");
+        input.type = "checkbox"; input.value = String(id); input.checked = true;
+        input.addEventListener("change", renderIfReady);
+        label.append(input, document.createTextNode(`#${id}`));
+        hmEls.waferList.appendChild(label);
+    }
+}
+
+function buildPresets() {
+    const col = selectedColumn();
+    const presets = presetsByColumn[col] || [["Auto from data", ...autoRange(col)]];
+    hmEls.presets.innerHTML = "";
+    presets.forEach(([name, lo, hi], i) => {
+        const label = document.createElement("label");
+        label.className = "preset";
+        const radio = document.createElement("input");
+        radio.type = "radio"; radio.name = "preset"; radio.checked = i === 0;
+        radio.addEventListener("change", () => { hmEls.lo.value = lo; hmEls.hi.value = hi; renderIfReady(); });
+        label.append(radio, document.createTextNode(`${name} (${lo}-${hi})`));
+        hmEls.presets.appendChild(label);
+    });
+    hmEls.lo.value = presets[0][1]; hmEls.hi.value = presets[0][2];
+}
+
+function autoRange(col) {
+    const values = hmRecords.map(r => r.Extra[col]).filter(v => v != null && !Number.isNaN(v));
+    if (!values.length) return [0, 1];
+    return [Math.min(...values), Math.max(...values)];
+}
+
+function applyDefaultTitle() {
+    const lot = fileBaseName.split("_")[0] || "Wafer";
+    hmEls.title.value = `${lot} ${selectedColumn() || "Heatmap"} Wafer Heatmap`;
+}
+
+function enableHmControls(enabled) {
+    for (const el of [hmEls.renderBtn, hmEls.downloadBtn, hmEls.selectAllBtn, hmEls.selectNoneBtn]) el.disabled = !enabled;
+}
+
+function selectedColumn() { return hmEls.column.value; }
+function selectedWafers() { return [...hmEls.waferList.querySelectorAll("input:checked")].map(i => Number(i.value)); }
+function setAllWafers(checked) { for (const input of hmEls.waferList.querySelectorAll("input")) input.checked = checked; renderIfReady(); }
+
+function readRange() {
+    const lo = Number(hmEls.lo.value), hi = Number(hmEls.hi.value);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) throw new Error("上下限必須是不同的數字。");
+    return lo < hi ? [lo, hi] : [hi, lo];
+}
+
+function renderIfReady() {
+    if (!hmRecords.length || !selectedColumn()) return;
+    try {
+        const [lo, hi] = readRange();
+        if (hmEls.mode.value === "detail") renderDetail(hmRecords, selectedColumn(), selectedWafers(), lo, hi);
+        else renderOverview(hmRecords, hmEls.title.value.trim(), selectedColumn(), lo, hi);
+        hmEls.empty.hidden = true; hmEls.canvasShell.hidden = false;
+        hmEls.downloadBtn.disabled = false;
+        hmEls.fileStatus.className = "hm-status";
+    } catch (err) {
+        hmEls.fileStatus.textContent = `Error: ${err.message}`;
+        hmEls.fileStatus.className = "hm-status error";
+    }
+}
+
+function colorForValue(value, lo, hi) {
+    if (value == null || Number.isNaN(value) || value < lo || value > hi) return [128, 128, 128];
+    const t = (value - lo) / (hi - lo);
+    if (t <= .5) { const f = t / .5; return [Math.floor(255 * f), 200 + Math.floor(55 * f), 0]; }
+    const f = (t - .5) / .5;
+    return [255, Math.floor(255 * (1 - f)), 0];
+}
+function rgb(c) { return `rgb(${c[0]},${c[1]},${c[2]})`; }
+
+function renderOverview(allRecords, title, col, lo, hi) {
+    const ctx = hmEls.canvas.getContext("2d");
+    const colsPerRow = 5, cell = 7, margin = 4, labelH = 16, padX = 8, padY = 8, outer = 30, titleH = 28;
+    const ext = extents(allRecords);
+    const dieW = ext.gridW * cell, dieH = ext.gridH * cell;
+    const waferPx = Math.max(dieW, dieH) + margin * 2;
+    const maxWaferId = Math.max(...allRecords.map(r => r.WaferId));
+    const rows = Math.ceil(maxWaferId / colsPerRow);
+    const width = outer * 2 + colsPerRow * waferPx + (colsPerRow - 1) * padX;
+    const height = outer * 2 + titleH + rows * (labelH + waferPx) + (rows - 1) * padY;
+    sizeCanvas(width, height);
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "#000099"; ctx.font = "700 12px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(title || "Wafer Heatmap", width / 2, outer + titleH / 2);
+    const byWafer = groupByWafer(allRecords);
+    ctx.font = "12px Arial"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+    for (let slot = 1; slot <= maxWaferId; slot++) {
+        const waferData = byWafer.get(slot);
+        const gridCol = (slot - 1) % colsPerRow, gridRow = Math.floor((slot - 1) / colsPerRow);
+        const ox = outer + gridCol * (waferPx + padX);
+        let oy = outer + titleH + gridRow * (labelH + waferPx + padY);
+        ctx.fillStyle = waferData ? "#111" : "#aaa";
+        ctx.fillText(`#${slot}`, ox, oy + 1);
+        oy += labelH;
+        if (!waferData) { dashedCircle(ctx, ox, oy, waferPx); continue; }
+        ctx.fillStyle = "#ccc"; ellipse(ctx, ox, oy, waferPx, true);
+        const cx = ox + waferPx / 2, cy = oy + waferPx / 2, radius = waferPx / 2;
+        const dieOffX = ox + margin + (waferPx - margin * 2 - dieW) / 2;
+        const dieOffY = oy + margin + (waferPx - margin * 2 - dieH) / 2;
+        for (let gy = 0; gy < ext.gridH; gy++) {
+            for (let gx = 0; gx < ext.gridW; gx++) {
+                const dx = dieOffX + gx * cell, dy = dieOffY + gy * cell;
+                const ccx = dx + cell / 2 - cx, ccy = dy + cell / 2 - cy;
+                if (ccx * ccx + ccy * ccy > (radius - margin / 2) ** 2) continue;
+                const rec = waferData.get(`${ext.xMin + gx},${ext.yMin + gy}`);
+                if (!rec) continue;
+                ctx.fillStyle = rgb(colorForValue(rec.Extra[col], lo, hi));
+                ctx.fillRect(dx, dy, cell - 1, cell - 1);
+            }
+        }
+        ctx.strokeStyle = "#696969"; ctx.lineWidth = 1; ellipse(ctx, ox, oy, waferPx, false);
+    }
+    ctx.fillStyle = "#696969"; ctx.font = "italic 10px Arial"; ctx.textAlign = "right";
+    ctx.fillText("by HTML Canvas", width - outer, height - outer + 4);
+}
+
+function renderDetail(allRecords, col, waferIds, lo, hi) {
+    if (!waferIds.length) throw new Error("請至少勾選一個片號。");
+    const ctx = hmEls.canvas.getContext("2d");
+    const cell = 36, margin = 6, label = 20, outer = 10, gap = 14, cols = 2;
+    const ext = extents(allRecords);
+    const dieW = ext.gridW * cell, dieH = ext.gridH * cell;
+    const waferPx = Math.max(dieW, dieH) + margin * 2;
+    const tileW = outer * 2 + waferPx, tileH = outer * 2 + label + waferPx;
+    const rows = Math.ceil(waferIds.length / cols);
+    const width = cols * tileW + (cols - 1) * gap, height = rows * tileH + (rows - 1) * gap;
+    sizeCanvas(width, height);
+    ctx.fillStyle = "#e6e1d2"; ctx.fillRect(0, 0, width, height);
+    const byWafer = groupByWafer(allRecords);
+    waferIds.forEach((wid, index) => {
+        const tileCol = index % cols, tileRow = Math.floor(index / cols);
+        const baseX = tileCol * (tileW + gap), baseY = tileRow * (tileH + gap);
+        const ox = baseX + outer, oy = baseY + outer + label;
+        const cx = ox + waferPx / 2, cy = oy + waferPx / 2, radius = waferPx / 2;
+        const waferData = byWafer.get(wid) || new Map();
+        ctx.fillStyle = "#fff"; ctx.fillRect(baseX, baseY, tileW, tileH);
+        ctx.fillStyle = "#111"; ctx.font = "700 13px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(`#${wid}  ${col}`, baseX + tileW / 2, baseY + outer + label / 2);
+        ctx.fillStyle = "#bebebe"; ellipse(ctx, ox, oy, waferPx, true);
+        const dieOffX = ox + margin + (waferPx - margin * 2 - dieW) / 2;
+        const dieOffY = oy + margin + (waferPx - margin * 2 - dieH) / 2;
+        for (let gy = 0; gy < ext.gridH; gy++) {
+            for (let gx = 0; gx < ext.gridW; gx++) {
+                const dx = dieOffX + gx * cell, dy = dieOffY + gy * cell;
+                const ccx = dx + cell / 2 - cx, ccy = dy + cell / 2 - cy;
+                if (ccx * ccx + ccy * ccy > (radius - margin / 2) ** 2) continue;
+                const rec = waferData.get(`${ext.xMin + gx},${ext.yMin + gy}`);
+                if (!rec) continue;
+                const value = rec.Extra[col];
+                const color = colorForValue(value, lo, hi);
+                ctx.fillStyle = rgb(color); ctx.fillRect(dx + 1, dy + 1, cell - 2, cell - 2);
+                ctx.strokeStyle = "rgba(80,80,80,.75)"; ctx.lineWidth = .5; ctx.strokeRect(dx + 1, dy + 1, cell - 2, cell - 2);
+                if (value != null && !Number.isNaN(value)) {
+                    const lum = (color[0] * .299 + color[1] * .587 + color[2] * .114) / 255;
+                    ctx.fillStyle = lum > .5 ? "#000" : "#fff"; ctx.font = "10px Arial";
+                    ctx.fillText(formatVal(value), dx + cell / 2, dy + cell / 2);
+                }
+            }
+        }
+        ctx.strokeStyle = "#696969"; ctx.lineWidth = 1.5; ellipse(ctx, ox, oy, waferPx, false);
+    });
+}
+
+function extents(allRecords) {
+    const xs = allRecords.map(r => r.X), ys = allRecords.map(r => r.Y);
+    const xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
+    return { xMin, xMax, yMin, yMax, gridW: xMax - xMin + 1, gridH: yMax - yMin + 1 };
+}
+function groupByWafer(allRecords) {
+    const byWafer = new Map();
+    for (const rec of allRecords) {
+        if (!byWafer.has(rec.WaferId)) byWafer.set(rec.WaferId, new Map());
+        byWafer.get(rec.WaferId).set(`${rec.X},${rec.Y}`, rec);
+    }
+    return byWafer;
+}
+function ellipse(ctx, x, y, size, fill) {
+    ctx.beginPath(); ctx.ellipse(x + size / 2, y + size / 2, size / 2, size / 2, 0, 0, Math.PI * 2);
+    if (fill) ctx.fill(); else ctx.stroke();
+}
+function dashedCircle(ctx, x, y, size) {
+    ctx.save(); ctx.strokeStyle = "#ccc"; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+    ellipse(ctx, x, y, size, false); ctx.restore();
+}
+function formatVal(v) {
+    const a = Math.abs(v);
+    if (a >= 1000) return v.toFixed(0); if (a >= 100) return v.toFixed(1);
+    if (a >= 10) return v.toFixed(2); if (a >= 1) return v.toFixed(3);
+    return Number(v.toPrecision(3)).toString();
+}
+function sizeCanvas(width, height) {
+    hmEls.canvas.width = Math.ceil(width); hmEls.canvas.height = Math.ceil(height);
+}
+function downloadPng() {
+    const link = document.createElement("a");
+    link.download = `wafer_${selectedColumn() || "heatmap"}_heatmap.png`;
+    link.href = hmEls.canvas.toDataURL("image/png"); link.click();
+}
+
+// ═══════════════════════════════════════════════════════════
+// EMBEDDED PRESET HEADERS (base64)
+// ═══════════════════════════════════════════════════════════
+const LLD_B64  = "77u/V2FmZXJfSUQsU2VyaWFsLEhCLFNCLFgsWSxDb250YWN0KDEpLENvbnRhY3QoMiksQ29udGFjdCgzKSxDb250YWN0KDQpLFZaMF81VixWWjBfMjBWLFZaMCxJUjAsRElSMCxWRjAsVloxLFZaMixEVlosSVIyXzEsSVIyXzFfMSxESVIyXzEsVkYxLElSMl8yLFZaMw0K";
+const ULLD_B64 = "77u/V2FmZXJfSUQsU2VyaWFsLEhCLFNCLFgsWSxUZXN0IFRpbWUoMCksQjZfQ29udGFjdDEoMSksQjdfQ29udGFjdDIoMiksQjhfQ29udGFjdDMoMyksQjlfQ29udGFjdDQoNCksQjEwX0NvbnRhY3Q1KDUpLElHU1MyRixJR1NTMyxJR1NTMlIsSURTUzIsUklEU1MyLFZGU0RTMSxCVkRTU18xMDB1QSxCVkRTUzIsQlZEU1MzLEJWRFNTXzEwMG1BLERlbHRhMSxWVEgxLFZUSDIsRGVsdGEyLElHU1MyRl8yLEIzN19SZXNpc3RvcixCMzVfSURTUzJfdGVzdDINCg==";
+
+function b64ToFile(b64, filename) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], filename, { type: 'text/csv' });
+}
+
+function injectHeaderFile(file, label) {
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  const input = document.getElementById('headerFile');
+  input.files = dt.files;
+  // Show label
+  const status = document.getElementById('headerPresetStatus');
+  status.textContent = '✅ 已帶入 ' + label + ' 表頭';
+  status.style.color = '#126c5a';
+}
+
+document.getElementById('btnLLD').addEventListener('click', function() {
+  injectHeaderFile(b64ToFile(LLD_B64,  'LLD_header.csv'),  'LLD');
+});
+
+document.getElementById('btnULLD').addEventListener('click', function() {
+  injectHeaderFile(b64ToFile(ULLD_B64, 'ULLD_header.csv'), 'ULLD');
+});
+
+// ═══════════════════════════════════════════════════════════
+// AUTO-LOAD DEFAULT Mapping_Form.xlsx on page load
+// ═══════════════════════════════════════════════════════════
+const MAPPING_B64 = "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";
+
+(function loadDefaultMapping() {
+  try {
+    const bin = atob(MAPPING_B64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const file = new File([bytes], 'Mapping_Form.xlsx',
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    readMappingFile(file, (data) => {
+      genMappingData = data;
+      mappingData   = data;
+      log('Default Mapping_Form.xlsx loaded: ' + data.length + ' entries');
+      document.getElementById('mapStatusGen').innerText = '✅ Default Mapping_Form.xlsx loaded (' + data.length + ' entries)';
+      document.getElementById('mapStatusPlot').innerText = '✅ ' + data.length + ' entries from Mapping_Form.xlsx';
+      document.getElementById('mapStatusPlot').className = 'mt-1 text-success d-block';
+      updateDeviceDropdown();
+      checkChartReady();
+      checkGenReady();
+    });
+  } catch(e) {
+    log('Default mapping load failed: ' + e.message);
+    document.getElementById('mapStatusGen').innerText = '⚠ Auto-load failed. Please select manually.';
+  }
+})();
+
+</script>
+
+</body>
+</html>
