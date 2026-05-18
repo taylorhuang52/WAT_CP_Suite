@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>WAT / CP Suite</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -320,6 +320,46 @@
       });
     }
   </script>
+
+ <script>
+/* 讓內容往內縮一點，避開螢幕圓角 */
+.container, .container-fluid {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+}
+
+/* 確保頂部導覽列不會撞到狀態列 */
+nav, header, .navbar {
+    margin-top: 5px;
+}
+
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a2332">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<style>
+    /* 修正手機邊緣截斷問題 */
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+</style>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('PWA Registered'))
+                .catch(err => console.log('PWA Failed', err));
+        });
+    }
+</script>
+
 
 
 </head>
