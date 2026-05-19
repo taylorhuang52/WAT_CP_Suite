@@ -336,6 +336,12 @@
           webkitdirectory directory multiple accept="">
       <span id="folderStatus" class="status-msg text-muted">No folder selected.</span>
 
+      <div class="section-divider"></div>
+
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">3. CP DailyReport (XLS/XLSX) <span style="font-weight:400;color:#6c757d;font-size:0.78rem;">— for Device Mapping cross-check</span></label>
+      <input type="file" id="dailyReportFile" class="form-control form-control-sm mb-1" accept=".xlsx,.xls">
+      <span id="dailyReportStatus" class="status-msg text-muted">No file loaded. (optional — lots not found will be marked <code>_mapfail</code>)</span>
+
       <div id="importProgress" class="mt-2">
         <div class="progress" style="height:5px">
           <div id="importBar" class="progress-bar" role="progressbar" style="width:0%"></div>
@@ -364,9 +370,24 @@
 
       <div class="section-divider"></div>
 
-      <label class="fw-bold mb-1" style="font-size:0.85rem;">1. Summary File (CSV / XLSX)</label>
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">1. WAT_Summary File (CSV / XLSX)</label>
       <input type="file" id="summaryFile" class="form-control form-control-sm mb-1" accept=".csv,.xlsx,.xls">
       <span id="sumStatus" class="status-msg text-muted">No file loaded.</span>
+
+      <div class="section-divider"></div>
+
+      <div class="mb-2 p-2 rounded" style="background:#fff8e8; border:1px solid #ffe082; font-size:0.83rem;">
+        <span class="fw-bold">3. CP DailyReport</span>
+        <span class="shared-badge" style="background:#fff3cd;color:#856404;border-color:#ffc107;">shared from left panel</span>
+        <span id="dailyReportStatusPlot" class="d-block mt-1 text-muted">Load DailyReport in the left panel above.</span>
+        <div class="mt-2" style="border-top:1px solid #ffe082; padding-top:8px;">
+          <label style="font-size:0.78rem; color:#6c757d; margin-bottom:3px; display:block;">或另選 CP DailyReport：</label>
+          <input type="file" id="dailyReportFilePlot" class="form-control form-control-sm" accept=".xlsx,.xls">
+        </div>
+      </div>
+      <button id="btnGenerateCP" class="btn btn-warning w-100 mt-2" disabled style="font-size:0.85rem;">
+        &#8595; Generate &amp; Download WAT_CP_Summary
+      </button>
 
       <div class="section-divider"></div>
 
@@ -380,7 +401,9 @@
         <div class="col-6">
           <label class="fw-bold mb-1" style="font-size:0.85rem;">3. Y-Axis</label>
           <select id="yAxisSelect" class="form-select form-select-sm">
-            <option value="Yield(%)" selected>Yield (%)</option>
+            <option value="WAT Yield" selected>WAT Yield (%)</option>
+            <option value="CP Yield">CP Yield (%)</option>
+            <option value="Yield gap">Yield gap</option>
             <option value="IR(18V)">IR(18V)</option>
             <option value="IR">IR</option>
             <option value="IR(22V)">IR(22V)</option>
@@ -555,6 +578,8 @@ let summaryData = [];
 let chartInstance = null;
 let genMappingData = [];
 let watLotFiles = {};
+let dailyReportData = [];     // { lotNum, typeA, typeMV } from CP DailyReport (left panel)
+let dailyReportDataPlot = []; // { lotNum, typeA, typeMV } from CP DailyReport (right panel)
 
 // ── Logger ───────────────────────────────────────────────────
 const log = (msg) => {
@@ -645,8 +670,88 @@ document.getElementById('watLogFolder').addEventListener('change', function(e) {
 
 function checkGenReady() {
     const validLots = Object.keys(watLotFiles).filter(l => watLotFiles[l].qc9 && watLotFiles[l].dif);
-    document.getElementById('btnGenerateSummary').disabled = !(genMappingData.length > 0 && validLots.length > 0);
+    const hasMapping = genMappingData.length > 0;
+    const hasLots    = validLots.length > 0;
+    const hasCP      = dailyReportData.length > 0;
+    const btn = document.getElementById('btnGenerateSummary');
+    btn.disabled = !(hasMapping && hasLots);
+    if (hasMapping && hasLots && hasCP) {
+        btn.textContent = '⬇ Generate & Download WAT_CP_Summary';
+        btn.className = 'btn btn-warning w-100 mt-3';
+    } else {
+        btn.textContent = '⬇ Generate & Download WAT_Summary';
+        btn.className = 'btn btn-success w-100 mt-3';
+    }
 }
+
+// ── DailyReport loader ────────────────────────────────────────
+document.getElementById('dailyReportFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        try {
+            const data = new Uint8Array(ev.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            // DailyReport has 2-row header: row 0 = section titles, row 1 = column names
+            const raw = XLSX.utils.sheet_to_json(ws, { defval: '', header: 1 });
+            // Find the header row containing 'Lot Num'
+            let headerIdx = -1;
+            for (let i = 0; i < Math.min(raw.length, 5); i++) {
+                if (raw[i].some(c => String(c).trim() === 'Lot Num')) { headerIdx = i; break; }
+            }
+            if (headerIdx < 0) { throw new Error('Cannot find "Lot Num" header row in DailyReport'); }
+            // Normalise headers: trim whitespace and newlines
+            const headers = raw[headerIdx].map(c => String(c).replace(/\n/g, ' ').trim());
+            const iLot   = headers.indexOf('Lot Num');
+            const iTypeA = headers.indexOf('Type(A)');
+            const iTypeMV = headers.indexOf('Type(mV)');
+            if (iLot < 0 || iTypeA < 0 || iTypeMV < 0) {
+                throw new Error('DailyReport must have columns: Lot Num, Type(A), Type(mV)');
+            }
+            // Find CP Yield column: 'Initial CP yield (%)' is the correct name in this report
+            const cpYieldCandidates = ['Initial CP yield (%)', 'Initial CP yield(%)', 'CP yield (%)', 'CP Yield', 'Yield', 'Yield(%)'];
+            const iYield = cpYieldCandidates.reduce((found, name) => {
+                if (found >= 0) return found;
+                const idx = headers.indexOf(name);
+                if (idx >= 0) return idx;
+                return headers.findIndex(h => h.toLowerCase().includes('initial cp yield') || h.toLowerCase() === name.toLowerCase());
+            }, -1);
+            dailyReportData = [];
+            for (let r = headerIdx + 1; r < raw.length; r++) {
+                const row = raw[r];
+                const lotNum = String(row[iLot] || '').trim();
+                const typeA  = String(row[iTypeA] || '').trim();
+                const typeMV = String(row[iTypeMV] || '').trim().replace(/MV$/i, 'mV');
+                const cpYield = iYield >= 0 ? String(row[iYield] || '').trim() : '';
+                if (!lotNum) continue;
+                dailyReportData.push({ lotNum, typeA, typeMV, cpYield });
+            }
+            const statusEl = document.getElementById('dailyReportStatus');
+            statusEl.innerHTML = `✅ Loaded ${dailyReportData.length} rows from <b>${file.name}</b>`;
+            statusEl.className = 'status-msg text-success';
+            log(`[Gen] DailyReport loaded: ${dailyReportData.length} rows from ${file.name}`);
+            // Sync shared DailyReport to right panel (if not overridden)
+            if (!dailyReportDataPlot._overridden) {
+                dailyReportDataPlot = dailyReportData;
+                document.getElementById('dailyReportStatusPlot').innerHTML =
+                    `✅ ${dailyReportData.length} rows shared from left panel (<b>${file.name}</b>)`;
+                document.getElementById('dailyReportStatusPlot').className = 'd-block mt-1 text-success';
+                checkCPReady();
+            }
+            checkGenReady();
+        } catch (err) {
+            dailyReportData = [];
+            const statusEl = document.getElementById('dailyReportStatus');
+            statusEl.innerText = `⚠ ${err.message}`;
+            statusEl.className = 'status-msg text-danger';
+            log(`[Gen] DailyReport load error: ${err.message}`);
+            checkGenReady();
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
 
 // ── Parse .qc9.txt ───────────────────────────────────────────
 async function parseQC9(file) {
@@ -713,12 +818,38 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
         const qc9 = await parseQC9(watLotFiles[lot].qc9);
         const dif = await parseDIF(watLotFiles[lot].dif);
         const mappingEntry = genMappingData.find(m => m.PartNo === qc9.partNo3);
-        const deviceMapping = mappingEntry ? mappingEntry.Device : '';
+        let deviceMapping = mappingEntry ? mappingEntry.Device : '';
         const epi = mappingEntry ? mappingEntry.EPI : '';
         const bgbm = mappingEntry ? mappingEntry.BGBM : '';
-        if (mappingEntry) log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → Device="${deviceMapping}"`);
-        else log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → ⚠ no mapping match`);
-        const row = { 'Lot no.': lot, 'RUN ON': qc9.runOn, 'Yield(%)': qc9.yieldPct,
+
+        // Cross-check with CP DailyReport (if loaded)
+        if (dailyReportData.length > 0) {
+            const drEntry = dailyReportData.find(d => d.lotNum === lot);
+            if (drEntry) {
+                // Build device key from DailyReport: Type(A) + Type(mV) normalised
+                const drDevice = drEntry.typeA + drEntry.typeMV;
+                // Use DailyReport-derived device (overrides mapping if present)
+                deviceMapping = drDevice;
+                log(`[Gen] ${lot}: DailyReport match → Device="${drDevice}"`);
+            } else {
+                // Lot not found in DailyReport → mark as mapfail
+                const base = deviceMapping || qc9.partNo3;
+                deviceMapping = base + '_mapfail';
+                log(`[Gen] ${lot}: ⚠ not in DailyReport → Device="${deviceMapping}"`);
+            }
+        } else {
+            // No DailyReport loaded — fall back to mapping file result
+            if (mappingEntry) log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → Device="${deviceMapping}"`);
+            else log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → ⚠ no mapping match`);
+        }
+        // CP Yield and Yield gap
+        const drEntry2 = dailyReportData.length > 0 ? dailyReportData.find(d => d.lotNum === lot) : null;
+        const cpYieldStr = drEntry2 ? drEntry2.cpYield : '';
+        const watYield = parseFloat(qc9.yieldPct);
+        const cpYield  = parseFloat(cpYieldStr);
+        const yieldGap = (!isNaN(watYield) && !isNaN(cpYield)) ? (watYield - cpYield).toFixed(2) : '';
+        const row = { 'Lot no.': lot, 'RUN ON': qc9.runOn,
+                      'WAT Yield': qc9.yieldPct, 'CP Yield': cpYieldStr, 'Yield gap': yieldGap,
                       'Device Mapping': deviceMapping, 'Part No': qc9.partNo3, 'EPI': epi, 'BGBM': bgbm };
         difParams.forEach(p => { row[p] = dif[p] !== undefined ? dif[p] : ''; });
         rows.push(row);
@@ -726,28 +857,34 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
     }
     progressBar.style.width = '100%';
     progressMsg.textContent = `Done! Building XLSX...`;
-    buildSummaryXLSX(rows);
+    const yyyymmdd0 = new Date().getFullYear().toString() + String(new Date().getMonth()+1).padStart(2,'0') + String(new Date().getDate()).padStart(2,'0');
+    const fname = dailyReportData.length > 0 ? `WAT_CP_Summary_${yyyymmdd0}.xlsx` : `WAT_Summary_${yyyymmdd0}.xlsx`;
+    buildSummaryXLSX(rows, fname);
     progressDiv.style.display = 'none';
     btn.disabled = false;
-    btn.textContent = '⬇ Generate & Download WAT_Summary';
+    checkGenReady();  // restore correct label
 });
 
-function buildSummaryXLSX(rows) {
+function buildSummaryXLSX(rows, filenameOverride) {
     const wb = XLSX.utils.book_new();
-    const headers = ['Lot no.','RUN ON','Yield(%)','Device Mapping','Part No','EPI','BGBM',
-                     'IR(18V) ','IR','IR(22V) ','BVR(500uA) ','BVR(5mA) ','BVR(10mA) ','Vf(50mA) ','Vf(260mA) ','Vf(3A) '];
+    const headers = ['Lot no.','RUN ON','WAT Yield','CP Yield','Yield gap','Device Mapping','Part No','EPI','BGBM',
+                     'IR(18V)','IR','IR(22V)','BVR(500uA)','BVR(5mA)','BVR(10mA)','Vf(50mA)','Vf(260mA)','Vf(3A)'];
     const wsData = [headers];
     rows.forEach(r => {
+        // Build a trimmed-key map once per row for O(1) lookup
+        const rMap = {};
+        for (const k of Object.keys(r)) rMap[k.trim()] = r[k];
         wsData.push(headers.map(h => {
-            const key = h.trim();
-            for (const k of Object.keys(r)) { if (k.trim() === key) return r[k]; }
-            return '';
+            const v = rMap[h.trim()];
+            return v !== undefined ? v : '';
         }));
     });
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = [{wch:10},{wch:18},{wch:10},{wch:18},{wch:10},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:14},{wch:12},{wch:14},{wch:10}];
+    // 18 cols: Lot no.|RUN ON|WAT Yield|CP Yield|Yield gap|Device Mapping|Part No|EPI|BGBM|IR(18V)|IR|IR(22V)|BVR(500uA)|BVR(5mA)|BVR(10mA)|Vf(50mA)|Vf(260mA)|Vf(3A)
+    ws['!cols'] = [{wch:10},{wch:18},{wch:10},{wch:10},{wch:10},{wch:14},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:10}];
     const yellowFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
-    const yellowCols = [3, 4, 5, 6];
+    // Highlight: WAT Yield(2), CP Yield(3), Yield gap(4), Device Mapping(5)
+    const yellowCols = [2, 3, 4, 5];
     for (let c = 0; c < headers.length; c++) {
         const cellAddr = XLSX.utils.encode_cell({ r: 0, c });
         if (!ws[cellAddr]) ws[cellAddr] = { v: headers[c], t: 's' };
@@ -763,7 +900,7 @@ function buildSummaryXLSX(rows) {
             ws[cellAddr].s = { font: { name: 'Arial', sz: 10 },
                 fill: yellowCols.includes(c) ? { patternType: 'solid', fgColor: { rgb: 'FFFDE7' } } : {},
                 border: { top:{style:'thin',color:{rgb:'DDDDDD'}},bottom:{style:'thin',color:{rgb:'DDDDDD'}},left:{style:'thin',color:{rgb:'DDDDDD'}},right:{style:'thin',color:{rgb:'DDDDDD'}} },
-                alignment: { horizontal: c < 3 || c === 8 ? 'center' : 'right' } };
+                alignment: { horizontal: c < 2 || c === 5 ? 'center' : 'right' } };
         }
     }
     XLSX.utils.book_append_sheet(wb, ws, 'Summary');
@@ -774,13 +911,126 @@ function buildSummaryXLSX(rows) {
     a.href = url;
     const today = new Date();
     const yyyymmdd = today.getFullYear().toString() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
-    a.download = `WAT_Summary_${yyyymmdd}.xlsx`;
+    const finalName = filenameOverride || `WAT_Summary_${yyyymmdd}.xlsx`;
+    a.download = finalName;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    log(`[Gen] WAT_Summary_${yyyymmdd}.xlsx generated with ${rows.length} rows. Download started.`);
+    log(`[Gen] ${finalName} generated with ${rows.length} rows. Download started.`);
 }
 
 // ── SECTION 2: Plot ──────────────────────────────────────────
 // Plot card: own mapping file picker (overrides shared mapping)
+
+// ── Right panel: DailyReport CP loader ───────────────────────
+function parseDailyReportArray(data) {
+    // data = Uint8Array of xls/xlsx
+    // DailyReport has 2-row header: row 0 = section titles, row 1 = actual column names
+    const wb = XLSX.read(data, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: '', header: 1 });
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(raw.length, 5); i++) {
+        if (raw[i].some(c => String(c).trim() === 'Lot Num')) { headerIdx = i; break; }
+    }
+    if (headerIdx < 0) throw new Error('Cannot find "Lot Num" header row in DailyReport');
+    // Normalise headers: trim whitespace and newlines
+    const headers = raw[headerIdx].map(c => String(c).replace(/\n/g, ' ').trim());
+    const iLot   = headers.indexOf('Lot Num');
+    const iTypeA = headers.indexOf('Type(A)');
+    const iTypeMV = headers.indexOf('Type(mV)');
+    if (iLot < 0 || iTypeA < 0 || iTypeMV < 0)
+        throw new Error('DailyReport must have columns: Lot Num, Type(A), Type(mV)');
+    // Find CP Yield column: 'Initial CP yield (%)' is the correct name in this report
+    const cpYieldCandidates = ['Initial CP yield (%)', 'Initial CP yield(%)', 'CP yield (%)', 'CP Yield', 'Yield', 'Yield(%)'];
+    const iYield = cpYieldCandidates.reduce((found, name) => {
+        if (found >= 0) return found;
+        // exact match
+        const idx = headers.indexOf(name);
+        if (idx >= 0) return idx;
+        // partial match (for columns with extra spaces/newlines)
+        return headers.findIndex(h => h.toLowerCase().includes('initial cp yield') || h.toLowerCase() === name.toLowerCase());
+    }, -1);
+    const result = [];
+    for (let r = headerIdx + 1; r < raw.length; r++) {
+        const row = raw[r];
+        const lotNum = String(row[iLot] || '').trim();
+        if (!lotNum) continue;
+        const typeA  = String(row[iTypeA] || '').trim();
+        const typeMV = String(row[iTypeMV] || '').trim().replace(/MV$/i, 'mV');
+        const cpYield = iYield >= 0 ? String(row[iYield] || '').trim() : '';
+        result.push({ lotNum, typeA, typeMV, cpYield });
+    }
+    return result;
+}
+
+document.getElementById('dailyReportFilePlot').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        try {
+            dailyReportDataPlot = parseDailyReportArray(new Uint8Array(ev.target.result));
+            dailyReportDataPlot._overridden = true;  // mark as manually chosen
+            const statusEl = document.getElementById('dailyReportStatusPlot');
+            statusEl.innerHTML = `✅ Loaded ${dailyReportDataPlot.length} rows from <b>${file.name}</b>`;
+            statusEl.className = 'd-block mt-1 text-success';
+            log(`[CP] DailyReport (right override) loaded: ${dailyReportDataPlot.length} rows from ${file.name}`);
+        } catch (err) {
+            dailyReportDataPlot = [];
+            document.getElementById('dailyReportStatusPlot').innerText = `⚠ ${err.message}`;
+            document.getElementById('dailyReportStatusPlot').className = 'd-block mt-1 text-danger';
+            log(`[CP] DailyReport load error: ${err.message}`);
+        }
+        checkCPReady();
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+function checkCPReady() {
+    const ready = summaryData.length > 0 && dailyReportDataPlot.length > 0;
+    document.getElementById('btnGenerateCP').disabled = !ready;
+}
+
+// ── Generate WAT_CP_Summary from right panel ──────────────────
+document.getElementById('btnGenerateCP').addEventListener('click', function() {
+    if (!summaryData.length || !dailyReportDataPlot.length) return;
+    const yyyymmdd = new Date().getFullYear().toString()
+        + String(new Date().getMonth()+1).padStart(2,'0')
+        + String(new Date().getDate()).padStart(2,'0');
+    const rows = summaryData.map(s => {
+        // Build a trimmed-key map for robust column access (handles old files with trailing spaces)
+        const sMap = {};
+        for (const k of Object.keys(s)) sMap[k.trim()] = s[k];
+        const lot = (sMap['Lot no.'] || sMap['Lot No.'] || sMap['LOT NO'] || '').toString().trim();
+        const drEntry = dailyReportDataPlot.find(d => d.lotNum === lot);
+        let deviceMapping;
+        if (drEntry) {
+            deviceMapping = drEntry.typeA + drEntry.typeMV;
+            log(`[CP] ${lot}: DailyReport match → Device="${deviceMapping}"`);
+        } else {
+            const base = (sMap['Device Mapping'] || sMap['Device'] || lot || '').toString().trim();
+            deviceMapping = base && !base.endsWith('_mapfail') ? base + '_mapfail' : (base || lot + '_mapfail');
+            log(`[CP] ${lot}: ⚠ not in DailyReport → Device="${deviceMapping}"`);
+        }
+        // WAT Yield: try new key first, fall back to old 'Yield(%)' key
+        const watYieldStr = (sMap['WAT Yield'] || sMap['Yield(%)'] || '').toString().trim();
+        const cpYieldStr  = drEntry ? (drEntry.cpYield || '') : '';
+        const watYield = parseFloat(watYieldStr);
+        const cpYield  = parseFloat(cpYieldStr);
+        const yieldGap = (!isNaN(watYield) && !isNaN(cpYield)) ? (watYield - cpYield).toFixed(2) : '';
+        // Rebuild row with clean keys + updated yield columns
+        const cleanRow = {};
+        for (const k of Object.keys(s)) cleanRow[k.trim()] = s[k];
+        cleanRow['WAT Yield']      = watYieldStr;
+        cleanRow['CP Yield']       = cpYieldStr;
+        cleanRow['Yield gap']      = yieldGap;
+        cleanRow['Device Mapping'] = deviceMapping;
+        // Remove old 'Yield(%)' key so it doesn't conflict
+        delete cleanRow['Yield(%)'];
+        return cleanRow;
+    });
+    buildSummaryXLSX(rows, `WAT_CP_Summary_${yyyymmdd}.xlsx`);
+    log(`[CP] WAT_CP_Summary_${yyyymmdd}.xlsx done.`);
+});
 document.getElementById('mappingFilePlot').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -805,7 +1055,7 @@ document.getElementById('summaryFile').addEventListener('change', function(e) {
                 summaryData = results.data;
                 log(`Summary loaded: ${summaryData.length} records`);
                 document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
-                checkChartReady();
+                checkChartReady(); checkCPReady();
             }
         });
     } else {
@@ -818,7 +1068,7 @@ document.getElementById('summaryFile').addEventListener('change', function(e) {
                 summaryData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
                 log(`Summary loaded: ${summaryData.length} records (sheet: ${sheetName})`);
                 document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
-                checkChartReady();
+                checkChartReady(); checkCPReady();
             } catch (err) { log(`Error parsing summary: ${err.message}`); }
         };
         reader.readAsArrayBuffer(file);
@@ -898,12 +1148,12 @@ document.getElementById('btnGenerate').addEventListener('click', function() {
         log(`  → ${part}: ${points.length} points`);
     });
     if (datasets.length === 0) { alert("No data found for selected Part Nos."); return; }
-    if (yAxisCol === 'Yield(%)' && globalMin !== Infinity) {
+    if ((yAxisCol === 'WAT Yield' || yAxisCol === 'Yield(%)') && globalMin !== Infinity) {
         datasets.push({ label: '100% Target', data: [{ x: globalMin, y: 100 }, { x: globalMax, y: 100 }],
                         type: 'line', borderColor: 'red', borderDash: [5, 5], pointRadius: 0, fill: false, tension: 0 });
     }
     document.getElementById('chartTitle').textContent = `${dev} — ${yAxisLabel}`;
-    renderChart(datasets, dev, yAxisLabel, yAxisCol === 'Yield(%)');
+    renderChart(datasets, dev, yAxisLabel, yAxisCol === 'WAT Yield' || yAxisCol === 'Yield(%)');
 });
 
 function parseDate(s) {
