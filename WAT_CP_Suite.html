@@ -556,6 +556,40 @@
     @media (max-width: 700px) {
       .hm-controls { grid-template-columns: 1fr; }
     }
+
+    /* ── Mobile Nav & Swipe ── */
+    @media (max-width: 600px) {
+      .app-header {
+        padding: 0 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0;
+        flex-wrap: nowrap;
+      }
+      .app-header::-webkit-scrollbar { display: none; }
+      .app-title {
+        font-size: 13px;
+        padding-right: 12px;
+        margin-right: 4px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .tab-btn {
+        padding: 12px 14px;
+        font-size: 12.5px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      /* Hide the full "Generate WAT Summary" card and related heavy import areas on mobile */
+      .mobile-hidden { display: none !important; }
+
+      /* Swipe animation */
+      .tab-page {
+        transition: opacity 0.18s ease;
+      }
+    }
   </style>
 </head>
 <body>
@@ -635,7 +669,7 @@
   <div class="wat-controls">
 
     <!-- Generate Summary Card -->
-    <div class="wat-card">
+    <div class="wat-card mobile-hidden">
       <div class="wat-card-title">📁 Generate WAT Summary</div>
 
       <label class="fw-bold mb-1" style="font-size:0.85rem;">1. Mapping File (XLSX) <span style="font-weight:400;color:#6c757d;font-size:0.78rem;">— default: Mapping_Form.xlsx</span></label>
@@ -701,7 +735,7 @@
     <div class="wat-card">
       <div class="wat-card-title">📈 Plot</div>
 
-      <div class="mb-2 p-2 rounded" style="background:#f0f8ff; border:1px solid #cce5ff; font-size:0.83rem;">
+      <div class="mb-2 p-2 rounded mobile-hidden" style="background:#f0f8ff; border:1px solid #cce5ff; font-size:0.83rem;">
         <span class="fw-bold">Mapping File</span>
         <span class="shared-badge">shared from Generate section</span>
         <span id="mapStatusPlot" class="d-block mt-1 text-muted">Load mapping in section above.</span>
@@ -719,7 +753,7 @@
 
       <div class="section-divider"></div>
 
-      <div class="mb-2 p-2 rounded" style="background:#fff8e8; border:1px solid #ffe082; font-size:0.83rem;">
+      <div class="mb-2 p-2 rounded mobile-hidden" style="background:#fff8e8; border:1px solid #ffe082; font-size:0.83rem;">
         <span class="fw-bold">3. CP DailyReport</span>
         <span class="shared-badge" style="background:#fff3cd;color:#856404;border-color:#ffc107;">shared from left panel</span>
         <span id="dailyReportStatusPlot" class="d-block mt-1 text-muted">Load DailyReport in the left panel above.</span>
@@ -728,7 +762,7 @@
           <input type="file" id="dailyReportFilePlot" class="form-control form-control-sm" accept=".xlsx,.xls">
         </div>
       </div>
-      <button id="btnGenerateCP" class="btn btn-warning w-100 mt-2" disabled style="font-size:0.85rem;">
+      <button id="btnGenerateCP" class="btn btn-warning w-100 mt-2 mobile-hidden" disabled style="font-size:0.85rem;">
         &#8595; Generate &amp; Download WAT_CP_Summary
       </button>
 
@@ -1042,12 +1076,49 @@
 // ══════════════════════════════════════════════════════════════
 // TAB SWITCHING
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════════
+const TAB_ORDER = ['wat', 'ulld', 'heatmap'];
+
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
-  btn.classList.add('active');
+  if (btn) {
+    btn.classList.add('active');
+  } else {
+    // called programmatically — find and activate the right btn
+    document.querySelector(`.tab-btn[data-tab="${name}"]`).classList.add('active');
+  }
+  // Scroll the active tab into view on mobile
+  const activeBtn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  if (activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
+
+// ── Touch swipe to switch tabs ──────────────────────────────
+(function() {
+  let touchStartX = 0, touchStartY = 0;
+  const appRoot = document.getElementById('app-root') || document.body;
+
+  document.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    // Only horizontal swipes (dx > 50px, dx > 2× dy)
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (!activeTab) return;
+    const cur = TAB_ORDER.indexOf(activeTab.dataset.tab);
+    let next = cur + (dx < 0 ? 1 : -1);
+    if (next < 0 || next >= TAB_ORDER.length) return;
+    switchTab(TAB_ORDER[next], null);
+  }, { passive: true });
+})();
 
 // ══════════════════════════════════════════════════════════════
 // PAGE 1 — WAT Monitor v2
