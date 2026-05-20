@@ -1074,8 +1074,76 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════
-// TAB SWITCHING
+// FILE SIZE GUARD  (9 MB limit for all file inputs)
 // ══════════════════════════════════════════════════════════════
+const FILE_SIZE_LIMIT_MB = 9;
+const FILE_SIZE_LIMIT_BYTES = FILE_SIZE_LIMIT_MB * 1024 * 1024;
+
+function checkFileSize(files) {
+  const totalBytes = Array.from(files).reduce((sum, f) => sum + f.size, 0);
+  if (totalBytes <= FILE_SIZE_LIMIT_BYTES) return true;
+  showFileSizeAlert();
+  return false;
+}
+
+function showFileSizeAlert() {
+  let overlay = document.getElementById('fileSizeAlertOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'fileSizeAlertOverlay';
+    overlay.style.cssText = [
+      'position:fixed','inset:0','z-index:9999',
+      'display:flex','align-items:center','justify-content:center',
+      'background:rgba(0,0,0,0.55)',
+      'backdrop-filter:blur(3px)',
+      '-webkit-backdrop-filter:blur(3px)'
+    ].join(';');
+
+    overlay.innerHTML = `
+      <div style="
+        background:#fff; border-radius:12px; padding:28px 32px;
+        max-width:380px; width:90%; box-shadow:0 8px 40px rgba(0,0,0,0.28);
+        font-family:inherit; text-align:center;
+      ">
+        <div style="font-size:32px;margin-bottom:12px;">⚠️</div>
+        <div style="font-size:15px;font-weight:700;color:#c0392b;margin-bottom:20px;">
+          Over ${FILE_SIZE_LIMIT_MB} MB limit
+        </div>
+        <button onclick="document.getElementById('fileSizeAlertOverlay').style.display='none'"
+          style="
+            display:block; width:100%; padding:9px 0;
+            background:#c0392b; color:#fff; border:none;
+            border-radius:7px; font-size:14px; font-weight:600;
+            cursor:pointer;
+          "
+        >OK</button>
+      </div>
+    `;
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.style.display = 'none';
+    });
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+}
+
+function attachFileSizeGuards() {
+  document.querySelectorAll('input[type="file"]').forEach(input => {
+    if (input.dataset.sizeGuard) return;
+    input.dataset.sizeGuard = '1';
+    input.addEventListener('change', function(e) {
+      if (!this.files || this.files.length === 0) return;
+      const ok = checkFileSize(this.files);
+      if (!ok) {
+        this.value = '';
+        e.stopImmediatePropagation();
+      }
+    }, true);
+  });
+}
+document.addEventListener('DOMContentLoaded', attachFileSizeGuards);
+attachFileSizeGuards();
+
 // ══════════════════════════════════════════════════════════════
 // TAB SWITCHING
 // ══════════════════════════════════════════════════════════════
@@ -2486,6 +2554,7 @@ document.getElementById('ulldDirFile').onchange   = e => ulldRegisterFiles(e.tar
 let ulldLotFiles = {};
 
 function ulldRegisterFiles(fileList) {
+  if (!checkFileSize(fileList)) return; // size guard
   const files = Array.from(fileList);
   ulldLotFiles = {};
   for (const f of files) {
