@@ -56,27 +56,38 @@
       font-weight: 500;
       cursor: pointer;
       border-bottom: 3px solid transparent;
-      transition: color .18s, border-color .18s;
+      transition: color .18s, border-color .18s, background .18s;
       white-space: nowrap;
       font-family: inherit;
     }
     .tab-btn:hover { color: #c8dde9; }
-    .tab-btn.active {
-      color: #7ecbbd;
-      border-bottom-color: #7ecbbd;
-      font-weight: 700;
-    }
+
+    /* Per-tab active colours */
+    .tab-btn.active { font-weight: 700; color: #fff; }
+
+    /* LLD WAT Monitor — deep blue */
+    .tab-btn[data-tab="wat"]:hover        { color: #90caff; }
+    .tab-btn[data-tab="wat"].active       { background: #1565c0; border-bottom-color: #90caff; color: #fff; }
+
+    /* ULLD WAT Monitor — deep teal/green */
+    .tab-btn[data-tab="ulld"]:hover       { color: #80e5c8; }
+    .tab-btn[data-tab="ulld"].active      { background: #0e6655; border-bottom-color: #4dd0b0; color: #fff; }
+
+    /* Wafer Heatmap — warm brown */
+    .tab-btn[data-tab="heatmap"]:hover    { color: #e8c99a; }
+    .tab-btn[data-tab="heatmap"].active   { background: #6d4c24; border-bottom-color: #e8c99a; color: #fff; }
 
     /* ── Tab Pages ── */
     .tab-page { display: none; }
     .tab-page.active { display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
 
     /* ═══════════════════════════════════════
-       PAGE 1 — WAT Monitor
+       PAGE 1 — LLD WAT Monitor  (light blue)
     ═══════════════════════════════════════ */
     #page-wat {
       padding: 18px 20px;
       gap: 16px;
+      background: #e8f4fd;
     }
 
     /* Controls row on top */
@@ -150,13 +161,103 @@
     .legend-swatch { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
     .section-divider { border-top: 1px solid #e9ecef; margin: 10px 0 8px; }
     .shared-badge { font-size: 0.7rem; background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; border-radius: 4px; padding: 1px 6px; margin-left: 5px; vertical-align: middle; }
+    .secondary-mapping-bar {
+      background: #f0fff4;
+      border: 1.5px solid #74c69d;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 0.83rem;
+    }
+    .secondary-mapping-bar .smb-title { font-weight: 700; color: #1a5c38; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .secondary-mapping-bar .smb-badge { font-size: 0.68rem; background: #c3f5da; color: #1a5c38; border: 1px solid #74c69d; border-radius: 4px; padding: 1px 6px; }
+    .smb-status { font-size: 0.79rem; margin-top: 4px; color: #666; }
     #importProgress { display: none; }
 
     /* ═══════════════════════════════════════
-       PAGE 2 — Wafer Heatmap
+       PAGE 1b — ULLD WAT Monitor  (tiffany light green)
+    ═══════════════════════════════════════ */
+    #page-ulld {
+      padding: 18px 20px;
+      gap: 16px;
+      background: #e0f5f1;
+    }
+    #ulldChartWrapper {
+      height: 420px;
+      background: white;
+      padding: 10px 16px;
+    }
+    #ulldYAxisSelect option[data-group="param"] { color: #1a5c38; }
+
+    /* ULLD drop zone — tiffany light theme */
+    .ulld-drop-zone {
+      background: #0e6655;
+      border: 2px dashed #4dd0b0;
+      border-radius: 10px;
+      padding: 22px 16px;
+      text-align: center;
+      cursor: default;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 0;
+    }
+    .ulld-drop-zone.drag-over {
+      border-color: #a7f3e4;
+      background: #0a5245;
+    }
+    .ulld-drop-zone .dz-icon { font-size: 34px; opacity: 0.85; line-height: 1; }
+    .ulld-drop-zone h3 {
+      color: #e0f5f1;
+      font-size: 13px;
+      font-weight: 600;
+      margin: 8px 0 4px;
+    }
+    .ulld-drop-zone p {
+      color: #a7f3e4;
+      font-size: 11px;
+      margin: 0 0 12px;
+      font-family: 'Consolas', monospace;
+    }
+    .ulld-dz-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .ulld-dz-btn {
+      background: #4dd0b0;
+      color: #0a3d30;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.15s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .ulld-dz-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .ulld-dz-btn:active { transform: translateY(0); }
+    .ulld-file-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      font-size: 11.5px;
+      color: #4a7a70;
+      font-family: 'Consolas', monospace;
+      background: #c8ede7;
+      border: 1px solid #9dd8ce;
+      border-radius: 6px;
+      padding: 6px 10px;
+      min-height: 30px;
+    }
+    .ulld-file-status.ok   { color: #0e5c3e; border-color: #4dd0b0; background: #d0f5ed; }
+    .ulld-file-status.warn { color: #8a4a00; border-color: #f0c06a; background: #fff3d6; }
+
+    /* ═══════════════════════════════════════
+       PAGE 2 — Wafer Heatmap  (light warm yellow)
     ═══════════════════════════════════════ */
     #page-heatmap {
       flex-direction: column;
+      background: #fdf8ed;
     }
 
     /* Controls top panel */
@@ -258,7 +359,7 @@
       flex: 1;
       padding: 16px 20px;
       overflow: auto;
-      background: #f0f2f5;
+      background: #f5eed8;
       display: flex;
       align-items: flex-start;
       justify-content: center;
@@ -266,9 +367,9 @@
     .canvas-shell {
       display: inline-block;
       padding: 14px;
-      border: 1px solid #cfd8d3;
+      border: 1px solid #d6c89a;
       border-radius: 10px;
-      background: #e8efe8;
+      background: #efe9d0;
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
     canvas { display: block; background: #fff; }
@@ -309,8 +410,9 @@
 <!-- ── App Header with Tabs ── -->
 <div class="app-header">
   <div class="app-title">🔬 WAT / CP Suite</div>
-  <button class="tab-btn active" onclick="switchTab('wat', this)">📊 WAT Monitor</button>
-  <button class="tab-btn" onclick="switchTab('heatmap', this)">🌡 Wafer Heatmap</button>
+  <button class="tab-btn active" data-tab="wat"     onclick="switchTab('wat', this)">📊 LLD WAT Monitor</button>
+  <button class="tab-btn"        data-tab="ulld"    onclick="switchTab('ulld', this)">📈 ULLD WAT Monitor</button>
+  <button class="tab-btn"        data-tab="heatmap" onclick="switchTab('heatmap', this)">🌡 Wafer Heatmap</button>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -351,6 +453,36 @@
 
       <button id="btnGenerateSummary" class="btn btn-success w-100 mt-3" disabled>
         ⬇ Generate &amp; Download WAT_Summary
+      </button>
+
+      <div class="section-divider" style="margin-top:14px;"></div>
+
+      <!-- 🔗 二次 Mapping File -->
+      <div class="wat-card-title" style="margin-bottom:8px; margin-top:4px;">🔗 二次 Mapping File
+        <span style="font-size:0.7rem;font-weight:400;background:#c3f5da;color:#1a5c38;border:1px solid #74c69d;border-radius:4px;padding:1px 7px;margin-left:6px;">左右兩側共用 · 以 Lot no. 對應 Device</span>
+      </div>
+      <input type="file" id="secondaryMappingFile" class="form-control form-control-sm mb-1" accept=".xlsx,.xls">
+      <div id="smbStatus" style="font-size:0.79rem;color:#666;margin-top:2px;margin-bottom:10px;">⏳ 尚未載入。上傳後以 Lot no. 覆寫 Device Mapping。</div>
+
+      <div class="section-divider"></div>
+
+      <!-- 📥 WAT_CP_Summary Import -->
+      <div class="wat-card-title" style="margin-bottom:8px; margin-top:4px;">📥 WAT_CP_Summary Import
+        <span style="font-size:0.7rem;font-weight:400;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 7px;margin-left:6px;">供右側 Plot 使用</span>
+      </div>
+
+      <!-- Auto-detect in-session -->
+      <div id="cpSumAutoBar" style="display:none; background:#f0fff4; border:1px solid #74c69d; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:0.81rem;">
+        <span id="cpSumAutoMsg" style="color:#1a5c38; font-weight:600;"></span>
+        <button id="btnUseCPSumAuto" class="btn btn-sm btn-success ms-2" style="font-size:0.78rem; padding:1px 10px;">✅ 使用此 Report</button>
+      </div>
+
+      <label style="font-size:0.82rem; color:#6c757d; margin-bottom:4px; display:block;">或手動匯入 WAT_CP_Summary XLSX：</label>
+      <input type="file" id="cpSummaryImportFile" class="form-control form-control-sm mb-1" accept=".xlsx,.xls,.csv">
+      <div id="cpSumImportStatus" style="font-size:0.79rem; color:#666; margin-top:2px; margin-bottom:10px;">⏳ 尚未載入。</div>
+
+      <button id="btnGenerateFTP" class="btn btn-info w-100 mt-1" disabled style="font-weight:600; color:#fff;">
+        ⬇ Generate &amp; Download FTP 2nd Mapping Summary
       </button>
     </div>
 
@@ -451,6 +583,144 @@
   </div>
 
 </div><!-- /page-wat -->
+
+
+<!-- ═══════════════════════════════════════
+     PAGE 1b — ULLD WAT Monitor
+═══════════════════════════════════════ -->
+<div id="page-ulld" class="tab-page">
+
+  <div class="wat-controls">
+
+    <!-- Left: File processor card -->
+    <div class="wat-card">
+      <div class="wat-card-title">⚡ ULLD WAT Files Processor</div>
+
+      <!-- ① Dark drop zone -->
+      <div class="ulld-drop-zone" id="ulldDropZone">
+        <div class="dz-icon">📂</div>
+        <h3>Drop ULLD WAT folder / files here</h3>
+        <p>*.qc9.txt + *.raw.xls</p>
+        <div class="ulld-dz-btns">
+          <button class="ulld-dz-btn" onclick="document.getElementById('ulldMultiFile').click()">
+            📄 Select Files
+          </button>
+          <button class="ulld-dz-btn" onclick="document.getElementById('ulldDirFile').click()">
+            📁 Select Folder
+          </button>
+        </div>
+      </div>
+      <input type="file" id="ulldMultiFile" multiple accept=".txt,.xls" style="display:none">
+      <input type="file" id="ulldDirFile"   multiple webkitdirectory style="display:none">
+
+      <div id="ulldFileStatus" class="ulld-file-status">No files loaded.</div>
+
+      <div id="ulldImportProgress" style="display:none" class="mt-2">
+        <div class="progress" style="height:5px">
+          <div id="ulldImportBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+        </div>
+        <small id="ulldImportMsg" class="text-muted">Processing...</small>
+      </div>
+
+      <button id="ulldBtnProcess" class="btn btn-success w-100 mt-2" disabled>
+        ⚙ import ULLD WAT (.qc9.txt / .raw.xls)
+      </button>
+
+      <div class="section-divider" style="margin-top:14px;"></div>
+
+      <!-- ② Import existing summary -->
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">or import ULLD_WAT_Summary XLSX</label>
+      <input type="file" id="ulldSummaryFile" class="form-control form-control-sm mb-1" accept=".xlsx,.xls">
+      <span id="ulldSumStatus" class="status-msg text-muted">No file loaded.</span>
+
+      <div class="section-divider"></div>
+
+      <button id="ulldBtnDownload" class="btn btn-outline-secondary w-100 mt-1" disabled>
+        ⬇ Download ULLD_WAT_Summary XLSX
+      </button>
+    </div>
+
+    <!-- Right: Plot card -->
+    <div class="wat-card">
+      <div class="wat-card-title">📈 Plot</div>
+
+      <div class="row g-2 align-items-end mb-2">
+        <div class="col-6">
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">X 軸</label>
+          <select id="ulldXAxisSelect" class="form-select form-select-sm">
+            <option value="Lot_No">Lot No</option>
+            <option value="RUN_ON">RUN ON (時間軸)</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">Y 軸 (測項)</label>
+          <select id="ulldYAxisSelect" class="form-select form-select-sm">
+            <option value="Yield(%)" selected>Yield (%)</option>
+            <optgroup label="WAT Parameters">
+              <option value="VSD">VSD</option>
+              <option value="VSD(1mA)">VSD(1mA)</option>
+              <option value="IGSSF">IGSSF</option>
+              <option value="IGSSR">IGSSR</option>
+              <option value="IGSSF_26">IGSSF_26</option>
+              <option value="IGSSR_26">IGSSR_26</option>
+              <option value="VT(50uA)">VT(50uA)</option>
+              <option value="VT(250uA)">VT(250uA)</option>
+              <option value="IDSS">IDSS</option>
+              <option value="BVDS_100uA">BVDS_100uA</option>
+              <option value="BVDS">BVDS</option>
+              <option value="BVDS_10mA">BVDS_10mA</option>
+              <option value="IGSSF_1">IGSSF_1</option>
+              <option value="IGSSR_1">IGSSR_1</option>
+              <option value="DBV">DBV</option>
+              <option value="DBV_1mA">DBV_1mA</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">Part No <span class="fw-normal text-muted">(multi-select)</span></label>
+      <select id="ulldPartNoSelect" class="form-select mb-1" multiple style="min-height:110px;font-size:0.88rem;" disabled></select>
+      <div class="select-hint">Ctrl+Click (Win) / Cmd+Click (Mac) to select multiple</div>
+
+      <div class="d-flex gap-2 mt-2">
+        <button id="ulldBtnSelectAll" class="btn btn-outline-secondary btn-sm" disabled>Select All</button>
+        <button id="ulldBtnGenerate" class="btn btn-primary btn-sm flex-grow-1" disabled>Display Chart</button>
+      </div>
+
+      <div class="section-divider mt-3"></div>
+
+      <div style="font-size:0.82rem; color:#666; background:#f8f9fa; border-radius:6px; padding:8px 10px;">
+        <span style="font-weight:600;">資料筆數：</span><span id="ulldRowCount">0</span>　
+        <span style="font-weight:600;">Lots：</span><span id="ulldLotCount">0</span>　
+        <span style="font-weight:600;">Part No：</span><span id="ulldPartCount">0</span>
+      </div>
+    </div>
+
+  </div><!-- /ulld controls -->
+
+  <!-- Chart area -->
+  <div class="wat-chart-area">
+    <div class="wat-chart-header">
+      <span id="ulldChartTitle">ULLD WAT — Yield Distribution</span>
+      <div class="d-flex align-items-center gap-2">
+        <div id="ulldLegendChips" class="d-flex flex-wrap justify-content-end"></div>
+        <button id="ulldBtnExportPng" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;" disabled>
+          🖼 Export PNG
+        </button>
+      </div>
+    </div>
+    <div id="ulldChartWrapper">
+      <canvas id="ulldChart"></canvas>
+    </div>
+  </div>
+
+  <!-- System Log -->
+  <div>
+    <div style="font-size:0.8rem; font-weight:600; color:#556; margin-bottom:5px;">System Log</div>
+    <div id="ulldDebugLog" class="debug-panel">System ready...</div>
+  </div>
+
+</div><!-- /page-ulld -->
 
 
 <!-- ═══════════════════════════════════════
@@ -580,6 +850,120 @@ let genMappingData = [];
 let watLotFiles = {};
 let dailyReportData = [];     // { lotNum, typeA, typeMV } from CP DailyReport (left panel)
 let dailyReportDataPlot = []; // { lotNum, typeA, typeMV } from CP DailyReport (right panel)
+let secondaryMappingData = new Map(); // Map: lotNo → Device  (from 27V_2026.xlsx)
+
+// ── Secondary Mapping (27V_2026.xlsx) ────────────────────────
+// Shared between Generate and Plot. Loads Lot no. → Device map.
+function loadSecondaryMappingFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            secondaryMappingData = new Map();
+            let count = 0;
+            raw.forEach(row => {
+                const lot = (row['Lot no.'] || row['Lot No.'] || row['LOT NO'] || '').toString().trim();
+                const dev = (row['Device'] || '').toString().trim();
+                if (lot && dev) { secondaryMappingData.set(lot, dev); count++; }
+            });
+            const msg = `✅ 載入 ${count} 筆 Lot→Device 對照 (${file.name})`;
+            const el = document.getElementById('smbStatus');
+            el.innerText = msg; el.style.color = '#1a5c38';
+            log(`[SecMap] Loaded ${count} entries from ${file.name}`);
+            checkFTPReady();
+        } catch (err) {
+            secondaryMappingData = new Map();
+            const el = document.getElementById('smbStatus');
+            el.innerText = `⚠ 載入失敗：${err.message}`; el.style.color = '#a13b2f';
+            log(`[SecMap] Error: ${err.message}`);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+document.getElementById('secondaryMappingFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    loadSecondaryMappingFile(file);
+});
+
+// ── WAT_CP_Summary Import (bottom panel) ─────────────────────
+// Auto-detect: when a report is generated in either panel, offer it here.
+let _inSessionCPSummaryRows = null;  // holds rows[] from last generated report
+let _inSessionCPSummaryName = '';
+
+function notifyCPSummaryGenerated(rows, fname) {
+    _inSessionCPSummaryRows = rows;
+    _inSessionCPSummaryName = fname;
+    const bar = document.getElementById('cpSumAutoBar');
+    const msg = document.getElementById('cpSumAutoMsg');
+    bar.style.display = 'block';
+    msg.textContent = `🟢 已產生「${fname}」(${rows.length} 筆)，可直接使用：`;
+    document.getElementById('cpSumImportStatus').innerText = '⏳ 尚未載入（可使用上方自動偵測）。';
+    log(`[CPImport] In-session report available: ${fname} (${rows.length} rows)`);
+}
+
+document.getElementById('btnUseCPSumAuto').addEventListener('click', function() {
+    if (!_inSessionCPSummaryRows) return;
+    summaryData = _inSessionCPSummaryRows.map(r => {
+        // Ensure rows are plain objects (they already are)
+        const out = {};
+        for (const k of Object.keys(r)) out[k.trim()] = r[k];
+        return out;
+    });
+    const status = document.getElementById('cpSumImportStatus');
+    status.innerText = `✅ 使用 in-session「${_inSessionCPSummaryName}」共 ${summaryData.length} 筆`;
+    status.style.color = '#1a5c38';
+    log(`[CPImport] Using in-session report: ${summaryData.length} rows loaded into Plot`);
+    checkChartReady(); checkCPReady(); checkFTPReady();
+    updateDeviceDropdown();
+    document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records (from in-session report)`;
+});
+
+document.getElementById('cpSummaryImportFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const status = document.getElementById('cpSumImportStatus');
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv') {
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: function(results) {
+                summaryData = results.data;
+                status.innerText = `✅ 載入 ${summaryData.length} 筆 (${file.name})`;
+                status.style.color = '#1a5c38';
+                log(`[CPImport] CSV loaded: ${summaryData.length} rows from ${file.name}`);
+                checkChartReady(); checkCPReady(); checkFTPReady();
+                updateDeviceDropdown();
+                document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
+            }
+        });
+    } else {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                const data = new Uint8Array(ev.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const sheetName = wb.SheetNames.includes('Summary') ? 'Summary' : wb.SheetNames[0];
+                summaryData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+                status.innerText = `✅ 載入 ${summaryData.length} 筆 (${file.name})`;
+                status.style.color = '#1a5c38';
+                log(`[CPImport] XLSX loaded: ${summaryData.length} rows from ${file.name}`);
+                checkChartReady(); checkCPReady(); checkFTPReady();
+                updateDeviceDropdown();
+                document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
+            } catch (err) {
+                status.innerText = `⚠ 載入失敗：${err.message}`;
+                status.style.color = '#a13b2f';
+                log(`[CPImport] Error: ${err.message}`);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+});
 
 // ── Logger ───────────────────────────────────────────────────
 const log = (msg) => {
@@ -842,6 +1226,14 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
             if (mappingEntry) log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → Device="${deviceMapping}"`);
             else log(`[Gen] ${lot}: suffix="${qc9.partNo3}" → ⚠ no mapping match`);
         }
+        // Secondary mapping (27V_2026.xlsx): override Device Mapping by Lot no. if found
+        if (secondaryMappingData.size > 0) {
+            const secDev = secondaryMappingData.get(lot);
+            if (secDev) {
+                log(`[Gen] ${lot}: SecMap match → Device="${secDev}" (overrides previous)`);
+                deviceMapping = secDev;
+            }
+        }
         // CP Yield and Yield gap
         const drEntry2 = dailyReportData.length > 0 ? dailyReportData.find(d => d.lotNum === lot) : null;
         const cpYieldStr = drEntry2 ? drEntry2.cpYield : '';
@@ -860,6 +1252,8 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
     const yyyymmdd0 = new Date().getFullYear().toString() + String(new Date().getMonth()+1).padStart(2,'0') + String(new Date().getDate()).padStart(2,'0');
     const fname = dailyReportData.length > 0 ? `WAT_CP_Summary_${yyyymmdd0}.xlsx` : `WAT_Summary_${yyyymmdd0}.xlsx`;
     buildSummaryXLSX(rows, fname);
+    // Notify bottom panel: in-session report available
+    if (dailyReportData.length > 0) notifyCPSummaryGenerated(rows, fname);
     progressDiv.style.display = 'none';
     btn.disabled = false;
     checkGenReady();  // restore correct label
@@ -919,6 +1313,48 @@ function buildSummaryXLSX(rows, filenameOverride) {
 
 // ── SECTION 2: Plot ──────────────────────────────────────────
 // Plot card: own mapping file picker (overrides shared mapping)
+
+// ── checkFTPReady ─────────────────────────────────────────────
+function checkFTPReady() {
+    const ready = secondaryMappingData.size > 0 && summaryData.length > 0;
+    document.getElementById('btnGenerateFTP').disabled = !ready;
+}
+
+// ── Generate FTP 2nd Mapping Summary ─────────────────────────
+document.getElementById('btnGenerateFTP').addEventListener('click', function() {
+    if (!secondaryMappingData.size || !summaryData.length) return;
+    const today = new Date();
+    const yyyymmdd = today.getFullYear().toString()
+        + String(today.getMonth()+1).padStart(2,'0')
+        + String(today.getDate()).padStart(2,'0');
+    const fname = `WAT_CP_FTP_Summary_${yyyymmdd}.xlsx`;
+
+    let matched = 0, unmatched = 0;
+    const rows = summaryData.map(s => {
+        const sMap = {};
+        for (const k of Object.keys(s)) sMap[k.trim()] = s[k];
+        const lot = (sMap['Lot no.'] || sMap['Lot No.'] || sMap['LOT NO'] || '').toString().trim();
+
+        let deviceMapping = (sMap['Device Mapping'] || sMap['Device'] || '').toString().trim();
+        const secDev = secondaryMappingData.get(lot);
+        if (secDev) {
+            deviceMapping = secDev;
+            matched++;
+            log(`[FTP] ${lot}: SecMap → Device="${secDev}"`);
+        } else {
+            unmatched++;
+            log(`[FTP] ${lot}: no SecMap entry, keep "${deviceMapping}"`);
+        }
+
+        const cleanRow = {};
+        for (const k of Object.keys(s)) cleanRow[k.trim()] = s[k];
+        cleanRow['Device Mapping'] = deviceMapping;
+        return cleanRow;
+    });
+
+    buildSummaryXLSX(rows, fname);
+    log(`[FTP] ${fname} done — ${matched} mapped, ${unmatched} unchanged.`);
+});
 
 // ── Right panel: DailyReport CP loader ───────────────────────
 function parseDailyReportArray(data) {
@@ -1011,6 +1447,14 @@ document.getElementById('btnGenerateCP').addEventListener('click', function() {
             deviceMapping = base && !base.endsWith('_mapfail') ? base + '_mapfail' : (base || lot + '_mapfail');
             log(`[CP] ${lot}: ⚠ not in DailyReport → Device="${deviceMapping}"`);
         }
+        // Secondary mapping (27V_2026.xlsx): override Device Mapping by Lot no. if found
+        if (secondaryMappingData.size > 0) {
+            const secDev = secondaryMappingData.get(lot);
+            if (secDev) {
+                log(`[CP] ${lot}: SecMap match → Device="${secDev}" (overrides previous)`);
+                deviceMapping = secDev;
+            }
+        }
         // WAT Yield: try new key first, fall back to old 'Yield(%)' key
         const watYieldStr = (sMap['WAT Yield'] || sMap['Yield(%)'] || '').toString().trim();
         const cpYieldStr  = drEntry ? (drEntry.cpYield || '') : '';
@@ -1029,6 +1473,7 @@ document.getElementById('btnGenerateCP').addEventListener('click', function() {
         return cleanRow;
     });
     buildSummaryXLSX(rows, `WAT_CP_Summary_${yyyymmdd}.xlsx`);
+    notifyCPSummaryGenerated(rows, `WAT_CP_Summary_${yyyymmdd}.xlsx`);
     log(`[CP] WAT_CP_Summary_${yyyymmdd}.xlsx done.`);
 });
 document.getElementById('mappingFilePlot').addEventListener('change', function(e) {
@@ -1055,7 +1500,7 @@ document.getElementById('summaryFile').addEventListener('change', function(e) {
                 summaryData = results.data;
                 log(`Summary loaded: ${summaryData.length} records`);
                 document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
-                checkChartReady(); checkCPReady();
+                checkChartReady(); checkCPReady(); checkFTPReady();
             }
         });
     } else {
@@ -1068,7 +1513,7 @@ document.getElementById('summaryFile').addEventListener('change', function(e) {
                 summaryData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
                 log(`Summary loaded: ${summaryData.length} records (sheet: ${sheetName})`);
                 document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
-                checkChartReady(); checkCPReady();
+                checkChartReady(); checkCPReady(); checkFTPReady();
             } catch (err) { log(`Error parsing summary: ${err.message}`); }
         };
         reader.readAsArrayBuffer(file);
@@ -1716,6 +2161,379 @@ document.getElementById('btnLLD').addEventListener('click', function() {
 
 document.getElementById('btnULLD').addEventListener('click', function() {
   injectHeaderFile(b64ToFile(ULLD_B64, 'ULLD_header.csv'), 'ULLD');
+});
+
+// ══════════════════════════════════════════════════════════════
+// PAGE 1b — ULLD WAT Monitor
+// ══════════════════════════════════════════════════════════════
+
+const ULLD_PARAMS = [
+  'VSD','VSD(1mA)','IGSSF','IGSSR','IGSSF_26','IGSSR_26',
+  'VT(50uA)','VT(250uA)','IDSS','BVDS_100uA','BVDS',
+  'BVDS_10mA','IGSSF_1','IGSSR_1','DBV','DBV_1mA'
+];
+
+const ULLD_MONTHS = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+
+let ulldData = [];       // array of row objects
+let ulldRawRows = [];    // for XLSX download
+let ulldChartInst = null;
+
+const ulldLog = (msg) => {
+  const div = document.getElementById('ulldDebugLog');
+  div.innerHTML += `<div>> ${msg}</div>`;
+  div.scrollTop = div.scrollHeight;
+};
+
+// ── File inputs ───────────────────────────────────────────────
+document.getElementById('ulldMultiFile').onchange = e => ulldRegisterFiles(e.target.files);
+document.getElementById('ulldDirFile').onchange   = e => ulldRegisterFiles(e.target.files);
+
+// Drag-and-drop on the dark drop zone
+(function() {
+  const dz = document.getElementById('ulldDropZone');
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', ()  => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    ulldRegisterFiles(e.dataTransfer.files);
+  });
+})();
+
+let ulldLotFiles = {};
+
+function ulldRegisterFiles(fileList) {
+  const files = Array.from(fileList);
+  ulldLotFiles = {};
+  for (const f of files) {
+    const qc  = f.name.match(/^(RP\d+)\.qc9\.txt$/i);
+    const raw = f.name.match(/^(RP\d+)\.raw\.xls$/i);
+    const lot = (qc || raw)?.[1];
+    if (!lot) continue;
+    ulldLotFiles[lot] = ulldLotFiles[lot] || {};
+    if (qc)  ulldLotFiles[lot].qc  = f;
+    if (raw) ulldLotFiles[lot].raw = f;
+  }
+  const keys = Object.keys(ulldLotFiles);
+  const valid = keys.filter(l => ulldLotFiles[l].qc || ulldLotFiles[l].raw);
+  const statusEl = document.getElementById('ulldFileStatus');
+  if (valid.length) {
+    statusEl.textContent = `✅  ${valid.length} lots found (${files.length} files)`;
+    statusEl.className = 'ulld-file-status ok';
+  } else {
+    statusEl.textContent = '⚠  No matching files — expect RP####.qc9.txt / RP####.raw.xls';
+    statusEl.className = 'ulld-file-status warn';
+  }
+  document.getElementById('ulldBtnProcess').disabled = valid.length === 0;
+  ulldLog(`[ULLD] Files registered: ${valid.length} lots`);
+}
+
+// ── Parse .qc9.txt ────────────────────────────────────────────
+function ulldParseRunOn(str) {
+  const m = str.match(/(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return '';
+  const dd = m[1].padStart(2,'0'), mon = String(ULLD_MONTHS[m[2]]||0).padStart(2,'0'), yyyy = m[3];
+  return `${yyyy}${mon}${dd} ${m[4]}${m[5]}${m[6]}`;
+}
+
+async function ulldParseQC9(file) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => {
+      const text = e.target.result;
+      let runOn = '', yieldPct = '', partNo3 = '';
+      for (const line of text.split(/\r?\n/)) {
+        if (!runOn) { const m = line.match(/RUN\s+ON\s*[:\s]+(.+)/i); if (m) runOn = ulldParseRunOn(m[1].trim()); }
+        if (!partNo3) { const m = line.match(/PRODUCT\s*ID\s*[:\s]\s*(\S+)/i); if (m) partNo3 = m[1].trim().slice(-3); }
+        const m2 = line.match(/Pass\s+Wafer\s*=.*?Yield\s*=\s*([\d.]+)%/i);
+        if (m2) yieldPct = m2[1];
+      }
+      res({ runOn, yieldPct, partNo3 });
+    };
+    r.readAsText(file);
+  });
+}
+
+// ── Parse .raw.xls (tab-separated text) ──────────────────────
+async function ulldParseRaw(file) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => {
+      const lines = e.target.result.split(/\r?\n/);
+      let headers = [];
+      for (const l of lines) { if (/^Parameter/i.test(l)) { headers = l.split('\t').map(s=>s.trim()); break; } }
+      const colIdx = {};
+      for (const p of ULLD_PARAMS) { const i = headers.indexOf(p); if (i>=0) colIdx[p]=i; }
+      const dataRows = [];
+      for (const l of lines) { if (/^\d{2}_\d+/.test(l.trim())) dataRows.push(l.split('\t')); }
+      const avgs = {};
+      for (const p of ULLD_PARAMS) {
+        const ci = colIdx[p];
+        if (ci===undefined) { avgs[p]=''; continue; }
+        const vals = [];
+        for (const row of dataRows) {
+          const raw = (row[ci]||'').trim();
+          if (!raw || raw.startsWith('?')) continue;
+          const n = parseFloat(raw);
+          if (!isNaN(n)) vals.push(n);
+        }
+        avgs[p] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : '';
+      }
+      res(avgs);
+    };
+    r.readAsText(file);
+  });
+}
+
+// ── Process button ────────────────────────────────────────────
+document.getElementById('ulldBtnProcess').addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true; btn.textContent = '⏳ 處理中...';
+  const prog = document.getElementById('ulldImportProgress');
+  const bar  = document.getElementById('ulldImportBar');
+  const msg  = document.getElementById('ulldImportMsg');
+  prog.style.display = 'block';
+
+  const keys = Object.keys(ulldLotFiles).sort();
+  ulldData = []; ulldRawRows = [];
+  let done = 0;
+
+  for (const lot of keys) {
+    const { qc, raw } = ulldLotFiles[lot];
+    try {
+      let runOn='', yieldPct='', partNo3='', avgs={};
+      if (qc)  { const r = await ulldParseQC9(qc); runOn=r.runOn; yieldPct=r.yieldPct; partNo3=r.partNo3; }
+      if (raw) { avgs = await ulldParseRaw(raw); }
+      const row = { Lot_No: lot, RUN_ON: runOn, 'Yield(%)': yieldPct!=='' ? parseFloat(yieldPct) : '', 'Part No': partNo3 };
+      ULLD_PARAMS.forEach(p => { row[p] = avgs[p]!==undefined&&avgs[p]!=='' ? avgs[p] : ''; });
+      ulldData.push(row);
+      ulldRawRows.push(row);
+      ulldLog(`✓ ${lot}  [${partNo3}]  RUN ON: ${runOn}  Yield: ${yieldPct}%`);
+    } catch(err) { ulldLog(`✗ ${lot}: ${err.message}`); }
+    done++;
+    bar.style.width = Math.round(done/keys.length*100)+'%';
+    msg.textContent = `${lot} (${done}/${keys.length})`;
+  }
+
+  prog.style.display = 'none';
+  btn.textContent = '⚙ 處理並載入圖表資料';
+  btn.disabled = false;
+  ulldLoadDataIntoUI();
+  document.getElementById('ulldBtnDownload').disabled = false;
+  ulldLog(`[ULLD] Done: ${ulldData.length} lots loaded.`);
+});
+
+// ── Import XLSX summary ───────────────────────────────────────
+document.getElementById('ulldSummaryFile').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      ulldData = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      ulldRawRows = ulldData;
+      document.getElementById('ulldSumStatus').textContent = `✅ Loaded ${ulldData.length} rows (${file.name})`;
+      document.getElementById('ulldBtnDownload').disabled = false;
+      ulldLoadDataIntoUI();
+      ulldLog(`[ULLD] XLSX imported: ${ulldData.length} rows from ${file.name}`);
+    } catch(err) {
+      document.getElementById('ulldSumStatus').textContent = `⚠ Load failed: ${err.message}`;
+      ulldLog(`[ULLD] Import error: ${err.message}`);
+    }
+  };
+  r.readAsArrayBuffer(file);
+});
+
+// ── Load data into UI (dropdowns, stats) ─────────────────────
+function ulldLoadDataIntoUI() {
+  if (!ulldData.length) return;
+  const parts = [...new Set(ulldData.map(r => (r['Part No']||'').toString().trim()).filter(Boolean))].sort();
+  const ps = document.getElementById('ulldPartNoSelect');
+  ps.innerHTML = '';
+  parts.forEach(p => ps.add(new Option(p, p)));
+  ps.disabled = false;
+  document.getElementById('ulldBtnSelectAll').disabled = false;
+  document.getElementById('ulldBtnGenerate').disabled = false;
+  document.getElementById('ulldRowCount').textContent  = ulldData.length;
+  document.getElementById('ulldLotCount').textContent  = [...new Set(ulldData.map(r=>r['Lot_No']))].length;
+  document.getElementById('ulldPartCount').textContent = parts.length;
+  document.getElementById('ulldSumStatus').textContent = `✅ ${ulldData.length} rows ready`;
+}
+
+// ── Select All toggle ─────────────────────────────────────────
+document.getElementById('ulldBtnSelectAll').addEventListener('click', function() {
+  const ps = document.getElementById('ulldPartNoSelect');
+  const allSel = [...ps.options].every(o => o.selected);
+  [...ps.options].forEach(o => o.selected = !allSel);
+  this.textContent = allSel ? 'Select All' : 'Deselect All';
+});
+
+// ── Generate chart ────────────────────────────────────────────
+document.getElementById('ulldBtnGenerate').addEventListener('click', function() {
+  const ps = document.getElementById('ulldPartNoSelect');
+  const selectedParts = [...ps.options].filter(o => o.selected).map(o => o.value);
+  const yCol   = document.getElementById('ulldYAxisSelect').value;
+  const xMode  = document.getElementById('ulldXAxisSelect').value;  // 'Lot_No' or 'RUN_ON'
+  const yLabel = document.getElementById('ulldYAxisSelect').options[document.getElementById('ulldYAxisSelect').selectedIndex].text;
+
+  if (!selectedParts.length) { alert('請至少選取一個 Part No'); return; }
+  ulldLog(`[ULLD] Generating: Y=${yCol}, X=${xMode}, Parts=[${selectedParts.join(',')}]`);
+
+  const legendEl = document.getElementById('ulldLegendChips');
+  legendEl.innerHTML = '';
+  const datasets = [];
+  let globalMin = Infinity, globalMax = -Infinity;
+  const isTimeX = xMode === 'RUN_ON';
+  const isYield = yCol === 'Yield(%)';
+
+  selectedParts.forEach((part, idx) => {
+    const matches = ulldData.filter(r => (r['Part No']||'').toString().trim() === part);
+    if (!matches.length) { ulldLog(`⚠ No records for Part No "${part}"`); return; }
+
+    const points = matches.map(m => {
+      const yRaw = m[yCol];
+      const yVal = parseFloat(yRaw);
+      if (isNaN(yVal)) return null;
+
+      if (isTimeX) {
+        const xDate = ulldParseDate(m['RUN_ON']);
+        if (!xDate) return null;
+        if (xDate < globalMin) globalMin = xDate;
+        if (xDate > globalMax) globalMax = xDate;
+        return { x: xDate, y: yVal, lot: m['Lot_No'] };
+      } else {
+        return { x: m['Lot_No'] || '', y: yVal };
+      }
+    }).filter(Boolean);
+
+    if (!points.length) { ulldLog(`⚠ No valid data for Part No "${part}" / Y=${yCol}`); return; }
+
+    if (!isTimeX) {
+      points.forEach(p => { if (p.y < globalMin) globalMin = p.y; if (p.y > globalMax) globalMax = p.y; });
+    }
+
+    const { color, shape } = seriesStyle(idx);
+    datasets.push({
+      label: part, data: points,
+      backgroundColor: color+'BB', borderColor: color,
+      pointStyle: shape, pointRadius: 6, pointHoverRadius: 8
+    });
+
+    const chip = document.createElement('div');
+    chip.className = 'legend-chip';
+    chip.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${part}`;
+    legendEl.appendChild(chip);
+    ulldLog(`  → ${part}: ${points.length} points`);
+  });
+
+  if (!datasets.length) { alert('選取的 Part No 沒有有效資料。'); return; }
+
+  // Add 100% reference line for Yield
+  if (isYield && isTimeX && globalMin !== Infinity) {
+    datasets.push({ label:'100% Target', data:[{x:globalMin,y:100},{x:globalMax,y:100}],
+      type:'line', borderColor:'red', borderDash:[5,5], pointRadius:0, fill:false, tension:0 });
+  }
+
+  document.getElementById('ulldChartTitle').textContent = `ULLD WAT — ${yLabel}`;
+  ulldRenderChart(datasets, yLabel, isTimeX, isYield);
+});
+
+function ulldParseDate(s) {
+  if (!s) return null;
+  s = s.toString().trim();
+  if (s.length < 8) return null;
+  const yr=s.substring(0,4), mo=s.substring(4,6), dy=s.substring(6,8);
+  const rest=s.substring(8).trim();
+  const hr=rest.substring(0,2)||'00', mi=rest.substring(2,4)||'00', se=rest.substring(4,6)||'00';
+  const d = new Date(`${yr}-${mo}-${dy}T${hr}:${mi}:${se}`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function ulldRenderChart(datasets, yLabel, isTimeX, isYield) {
+  const ctx = document.getElementById('ulldChart').getContext('2d');
+  if (ulldChartInst) ulldChartInst.destroy();
+
+  const xScaleCfg = isTimeX
+    ? { type:'time', time:{unit:'week'}, title:{display:true, text:'RUN ON (Week)', font:{size:12}} }
+    : { type:'category', title:{display:true, text:'Lot No', font:{size:12}},
+        ticks:{maxRotation:45, minRotation:30} };
+
+  ulldChartInst = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display:true, position:'top', labels:{usePointStyle:true, pointStyleWidth:14} },
+        title:  { display:true, text:'ULLD WAT Monitor', font:{size:14} },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              if (c.dataset.label==='100% Target') return null;
+              const d = c.raw;
+              const xStr = isTimeX ? (d.x instanceof Date ? d.x.toLocaleString() : d.x) : d.x;
+              const yStr = isYield ? `${d.y}%` : d.y.toFixed(4);
+              const lotStr = d.lot ? ` [${d.lot}]` : '';
+              return ` ${c.dataset.label}${lotStr}: ${yStr}  (${xStr})`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: xScaleCfg,
+        y: {
+          min: isYield ? 0 : undefined,
+          max: isYield ? 120 : undefined,
+          title: { display:true, text:yLabel, font:{size:12} }
+        }
+      }
+    }
+  });
+
+  document.getElementById('ulldBtnExportPng').disabled = false;
+  ulldLog(`[ULLD] Chart rendered: ${datasets.filter(d=>d.label!=='100% Target').length} series`);
+}
+
+// ── Export PNG ────────────────────────────────────────────────
+document.getElementById('ulldBtnExportPng').addEventListener('click', function() {
+  if (!ulldChartInst) return;
+  const canvas = document.getElementById('ulldChart');
+  const ec = document.createElement('canvas');
+  ec.width = canvas.width; ec.height = canvas.height;
+  const ctx = ec.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,ec.width,ec.height);
+  ctx.drawImage(canvas, 0, 0);
+  const today = new Date();
+  const ymd = today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
+  const ps = document.getElementById('ulldPartNoSelect');
+  const parts = [...ps.options].filter(o=>o.selected).map(o=>o.value).join('+');
+  const yCol = document.getElementById('ulldYAxisSelect').value.replace(/[^a-zA-Z0-9]/g,'_');
+  ec.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`ULLD_WAT_${parts}_${yCol}_${ymd}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    ulldLog(`[ULLD] PNG exported`);
+  },'image/png');
+});
+
+// ── Download XLSX ─────────────────────────────────────────────
+document.getElementById('ulldBtnDownload').addEventListener('click', function() {
+  if (!ulldRawRows.length) return;
+  const today = new Date();
+  const ymd = today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
+  const headers = ['Lot_No','RUN_ON','Yield(%)','Part No',...ULLD_PARAMS];
+  const wsData = [headers, ...ulldRawRows.map(r => headers.map(h => {
+    const v = r[h]; return (v!==undefined&&v!=='') ? v : '';
+  }))];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:12},{wch:18},{wch:10},{wch:10},...ULLD_PARAMS.map(()=>({wch:13}))];
+  XLSX.utils.book_append_sheet(wb, ws, 'WAT_Summary');
+  XLSX.writeFile(wb, `ULLD_WAT_Summary_${ymd}.xlsx`);
+  ulldLog(`[ULLD] Downloaded ULLD_WAT_Summary_${ymd}.xlsx`);
 });
 
 // ═══════════════════════════════════════════════════════════
