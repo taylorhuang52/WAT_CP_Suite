@@ -249,6 +249,10 @@
       grid-template-columns: 1fr 1fr;
       gap: 16px;
     }
+    /* ULLD WAT Monitor has 3 cards: WAT Processor | CP DataBase | Plot */
+    #page-ulld .wat-controls {
+      grid-template-columns: 1fr auto 1fr;
+    }
     .wat-card {
       background: #fff;
       border-radius: 10px;
@@ -590,7 +594,26 @@
         transition: opacity 0.18s ease;
       }
     }
-  </style>
+  
+    /* ── 9MB size-limit toggle switch ── */
+    .sz-toggle {
+      position: relative; width: 36px; height: 18px;
+      background: #3a7bd5; border-radius: 9px;
+      cursor: pointer; transition: background 0.25s;
+      flex-shrink: 0;
+    }
+    .sz-toggle.off { background: #ccc; }
+    .sz-toggle-teal       { background: #1a7a5e; }
+    .sz-toggle-teal.off   { background: #ccc; }
+    .sz-knob {
+      position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; transition: transform 0.25s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .sz-toggle.off .sz-knob { transform: translateX(0); }
+    .sz-toggle:not(.off) .sz-knob { transform: translateX(18px); }
+</style>
 </head>
 <body>
 
@@ -670,7 +693,15 @@
 
     <!-- Generate Summary Card -->
     <div class="wat-card mobile-hidden">
-      <div class="wat-card-title">📁 Generate WAT Summary</div>
+      <div class="wat-card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>📁 Generate WAT Summary</span>
+        <label title="關閉後不限制上傳檔案大小" style="display:flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:400;color:#6c757d;cursor:pointer;white-space:nowrap;">
+          <span id="lldSizeLimitLabel">9MB限制</span>
+          <div class="sz-toggle" id="lldSizeToggle" onclick="toggleSizeLimit('lld')" aria-label="9MB limit toggle">
+            <div class="sz-knob"></div>
+          </div>
+        </label>
+      </div>
 
       <label class="fw-bold mb-1" style="font-size:0.85rem;">1. Mapping File (XLSX) <span style="font-weight:400;color:#6c757d;font-size:0.78rem;">— default: Mapping_Form.xlsx</span></label>
       <input type="file" id="mappingFileGen" class="form-control form-control-sm mb-1" accept=".xlsx,.xls,.csv">
@@ -837,9 +868,17 @@
 
   <div class="wat-controls">
 
-    <!-- Left: File processor card -->
+    <!-- Left: File processor card (WAT source) -->
     <div class="wat-card">
-      <div class="wat-card-title">⚡ ULLD WAT Files Processor</div>
+      <div class="wat-card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>⚡ ULLD WAT Files Processor</span>
+        <label title="關閉後不限制上傳檔案大小" style="display:flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:400;color:#6c757d;cursor:pointer;white-space:nowrap;">
+          <span id="ulldSizeLimitLabel">9MB限制</span>
+          <div class="sz-toggle sz-toggle-teal" id="ulldSizeToggle" onclick="toggleSizeLimit('ulld')" aria-label="9MB limit toggle">
+            <div class="sz-knob"></div>
+          </div>
+        </label>
+      </div>
 
       <!-- ① Dark drop zone -->
       <div class="ulld-drop-zone" id="ulldDropZone">
@@ -882,6 +921,35 @@
 
       <button id="ulldBtnDownload" class="btn btn-outline-secondary w-100 mt-1" disabled>
         ⬇ Download ULLD_WAT_Summary XLSX
+      </button>
+    </div>
+
+    <!-- Right sub-block: ULLD_DataBase import -->
+    <div class="wat-card" style="min-width:220px; max-width:280px; flex:0 0 auto;">
+      <div class="wat-card-title">🗄 ULLD CP DataBase</div>
+
+      <label class="fw-bold mb-1" style="font-size:0.85rem;">Import ULLD_DataBase (XLS / XLSX)</label>
+      <input type="file" id="ulldDbFile" class="form-control form-control-sm mb-1" accept=".xls,.xlsx">
+      <span id="ulldDbStatus" class="status-msg text-muted" style="font-size:0.82rem;">No file loaded.</span>
+
+      <div class="section-divider mt-2"></div>
+
+      <div style="font-size:0.82rem; color:#555; background:#f0faf5; border-radius:6px; padding:8px 10px; margin-top:4px;">
+        <div class="fw-bold mb-1" style="color:#1a7a5e;">載入後說明</div>
+        <ul style="padding-left:1.1rem; margin:0; line-height:1.7;">
+          <li>讀取 <code>Yield Summary</code> 頁面</li>
+          <li>比對 <strong>Lot No</strong> 加入 <strong>CP Yield</strong></li>
+          <li>計算 <strong>Yield gap</strong> = WAT Yield − CP Yield</li>
+          <li>下載檔名改為 <code>ULLD_WAT_CP_Summary_yyyymmdd.xlsx</code></li>
+        </ul>
+      </div>
+
+      <div id="ulldDbSummary" style="display:none; margin-top:8px; font-size:0.81rem; color:#1a7a5e; background:#e8f8f2; border-radius:6px; padding:7px 10px;">
+        <span id="ulldDbSummaryText"></span>
+      </div>
+
+      <button id="ulldBtnClearDb" class="btn btn-outline-danger btn-sm w-100 mt-2" style="display:none;">
+        ✕ Clear CP DataBase
       </button>
     </div>
 
@@ -1074,12 +1142,19 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════
-// FILE SIZE GUARD  (9 MB limit for all file inputs)
+// FILE SIZE GUARD  (9 MB limit — per-panel toggle)
 // ══════════════════════════════════════════════════════════════
 const FILE_SIZE_LIMIT_MB = 9;
 const FILE_SIZE_LIMIT_BYTES = FILE_SIZE_LIMIT_MB * 1024 * 1024;
 
-function checkFileSize(files) {
+// Per-panel bypass flags (set by toggle switches)
+let lldSizeLimitOff  = false;
+let ulldSizeLimitOff = false;
+
+// caller passes optional panel id: 'lld' | 'ulld' | undefined (= always check)
+function checkFileSize(files, panel) {
+  if (panel === 'lld'  && lldSizeLimitOff)  return true;
+  if (panel === 'ulld' && ulldSizeLimitOff) return true;
   const totalBytes = Array.from(files).reduce((sum, f) => sum + f.size, 0);
   if (totalBytes <= FILE_SIZE_LIMIT_BYTES) return true;
   showFileSizeAlert();
@@ -1133,7 +1208,11 @@ function attachFileSizeGuards() {
     input.dataset.sizeGuard = '1';
     input.addEventListener('change', function(e) {
       if (!this.files || this.files.length === 0) return;
-      const ok = checkFileSize(this.files);
+      // Detect which panel this input belongs to
+      const panel = this.closest('#page-ulld') ? 'ulld'
+                  : this.closest('#page-wat')  ? 'lld'
+                  : undefined;
+      const ok = checkFileSize(this.files, panel);
       if (!ok) {
         this.value = '';
         e.stopImmediatePropagation();
@@ -1143,6 +1222,25 @@ function attachFileSizeGuards() {
 }
 document.addEventListener('DOMContentLoaded', attachFileSizeGuards);
 attachFileSizeGuards();
+
+// ── 9MB limit per-panel toggle ────────────────────────────────
+function toggleSizeLimit(panel) {
+  if (panel === 'lld') {
+    lldSizeLimitOff = !lldSizeLimitOff;
+    const tog = document.getElementById('lldSizeToggle');
+    const lbl = document.getElementById('lldSizeLimitLabel');
+    tog.classList.toggle('off', lldSizeLimitOff);
+    lbl.textContent = lldSizeLimitOff ? '9MB限制 ✕' : '9MB限制';
+    lbl.style.color  = lldSizeLimitOff ? '#c0392b' : '#6c757d';
+  } else {
+    ulldSizeLimitOff = !ulldSizeLimitOff;
+    const tog = document.getElementById('ulldSizeToggle');
+    const lbl = document.getElementById('ulldSizeLimitLabel');
+    tog.classList.toggle('off', ulldSizeLimitOff);
+    lbl.textContent = ulldSizeLimitOff ? '9MB限制 ✕' : '9MB限制';
+    lbl.style.color  = ulldSizeLimitOff ? '#c0392b' : '#6c757d';
+  }
+}
 
 // ══════════════════════════════════════════════════════════════
 // TAB SWITCHING
@@ -1493,6 +1591,7 @@ async function parseQC9(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
             const text = e.target.result;
+            const lines = text.split(/\r?\n/);
             const runOnMatch = text.match(/RUN ON\s*:\s*(\d+\s+\w+\s+\d{4}\s+[\d:]+)/);
             const yieldMatch = text.match(/Yield\s*=\s*([\d.]+)%/);
             const productIdMatch = text.match(/PRODUCT\s+ID\s*:\s*(\S+)/);
@@ -1509,7 +1608,22 @@ async function parseQC9(file) {
             }
             if (yieldMatch) yieldPct = yieldMatch[1];
             if (productIdMatch) { const pid = productIdMatch[1].trim(); partNo3 = pid.slice(-3); }
-            resolve({ runOn, yieldPct, partNo3 });
+
+            // Parse per-wafer yield from WAFER SUMMARY table
+            // Row format: "   01           20           20        PASS     100         100"
+            const waferYields = {};
+            let inTable = false;
+            for (const line of lines) {
+                if (/WAFER\s+ID\s+TOTAL\s+SITES/i.test(line)) { inTable = true; continue; }
+                if (inTable) {
+                    if (/^[\s-]+$/.test(line)) continue;
+                    const m = line.match(/^\s*(\d{2})\s+\d+\s+\d+\s+\S+\s+([\d.]+)/);
+                    if (m) { waferYields[m[1]] = parseFloat(m[2]); }
+                    else if (line.trim() === '') { inTable = false; }
+                }
+            }
+
+            resolve({ runOn, yieldPct, partNo3, waferYields });
         };
         reader.readAsText(file);
     });
@@ -1594,6 +1708,12 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
                       'WAT Yield': qc9.yieldPct, 'CP Yield': cpYieldStr, 'Yield gap': yieldGap,
                       'Device Mapping': deviceMapping, 'Part No': qc9.partNo3, 'EPI': epi, 'BGBM': bgbm };
         difParams.forEach(p => { row[p] = dif[p] !== undefined ? dif[p] : ''; });
+        // Per-wafer yield from qc9 WAFER SUMMARY table (#1~#25)
+        const wy = qc9.waferYields || {};
+        for (let w = 1; w <= 25; w++) {
+            const key = String(w).padStart(2, '0');
+            row[`#${w}`] = wy[key] !== undefined ? wy[key] : '';
+        }
         rows.push(row);
         log(`[Gen] ${lot}: RUN ON=${qc9.runOn}, Yield=${qc9.yieldPct}%`);
     }
@@ -1611,40 +1731,87 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
 
 function buildSummaryXLSX(rows, filenameOverride) {
     const wb = XLSX.utils.book_new();
-    const headers = ['Lot no.','RUN ON','WAT Yield','CP Yield','Yield gap','Device Mapping','Part No','EPI','BGBM',
-                     'IR(18V)','IR','IR(22V)','BVR(500uA)','BVR(5mA)','BVR(10mA)','Vf(50mA)','Vf(260mA)','Vf(3A)'];
+    const hasCp = dailyReportData && dailyReportData.length > 0;
+    const waferCols = Array.from({length:25}, (_,i) => `#${i+1}`);
+
+    // Base params columns (always present)
+    const PARAM_COLS = ['IR(18V)','IR','IR(22V)','BVR(500uA)','BVR(5mA)','BVR(10mA)','Vf(50mA)','Vf(260mA)','Vf(3A)'];
+
+    // Header: CP Yield / Yield gap only when CP DailyReport is imported
+    let headers;
+    if (hasCp) {
+        headers = ['Lot no.','RUN ON','WAT Yield','CP Yield','Yield gap','Device Mapping','Part No','EPI','BGBM',
+                   ...PARAM_COLS, ...waferCols];
+    } else {
+        headers = ['Lot no.','RUN ON','Yield(%)','Device Mapping','Part No','EPI','BGBM',
+                   ...PARAM_COLS, ...waferCols];
+    }
+
     const wsData = [headers];
     rows.forEach(r => {
-        // Build a trimmed-key map once per row for O(1) lookup
         const rMap = {};
         for (const k of Object.keys(r)) rMap[k.trim()] = r[k];
+        // For no-CP mode, map 'WAT Yield' key → 'Yield(%)' header
+        if (!hasCp && rMap['WAT Yield'] !== undefined && rMap['Yield(%)'] === undefined) {
+            rMap['Yield(%)'] = rMap['WAT Yield'];
+        }
         wsData.push(headers.map(h => {
             const v = rMap[h.trim()];
             return v !== undefined ? v : '';
         }));
     });
+
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    // 18 cols: Lot no.|RUN ON|WAT Yield|CP Yield|Yield gap|Device Mapping|Part No|EPI|BGBM|IR(18V)|IR|IR(22V)|BVR(500uA)|BVR(5mA)|BVR(10mA)|Vf(50mA)|Vf(260mA)|Vf(3A)
-    ws['!cols'] = [{wch:10},{wch:18},{wch:10},{wch:10},{wch:10},{wch:14},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:10}];
-    const yellowFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
-    // Highlight: WAT Yield(2), CP Yield(3), Yield gap(4), Device Mapping(5)
-    const yellowCols = [2, 3, 4, 5];
+
+    // Column widths
+    const fixedWidths = hasCp
+        ? [{wch:10},{wch:18},{wch:10},{wch:10},{wch:10},{wch:14},{wch:10},{wch:10},{wch:10}]
+        : [{wch:10},{wch:18},{wch:10},{wch:14},{wch:10},{wch:10},{wch:10}];
+    ws['!cols'] = [
+        ...fixedWidths,
+        ...PARAM_COLS.map(() => ({wch:12})),
+        ...waferCols.map(() => ({wch:7}))
+    ];
+
+    const yellowFill  = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
+    const blueFill    = { patternType: 'solid', fgColor: { rgb: 'D9E1F2' } };
+    const greenFill   = { patternType: 'solid', fgColor: { rgb: 'E2EFDA' } };
+
+    // Yellow cols: WAT Yield, CP Yield, Yield gap, Device Mapping (indices differ by mode)
+    const yieldColIdx  = 2;  // always col 2
+    const devMapIdx    = hasCp ? 5 : 3;
+    const cpYieldIdx   = hasCp ? 3 : -1;
+    const yieldGapIdx  = hasCp ? 4 : -1;
+    const waferStartIdx = headers.length - 25;
+
     for (let c = 0; c < headers.length; c++) {
         const cellAddr = XLSX.utils.encode_cell({ r: 0, c });
         if (!ws[cellAddr]) ws[cellAddr] = { v: headers[c], t: 's' };
-        ws[cellAddr].s = { font: { bold: true, name: 'Arial', sz: 10 },
-            fill: yellowCols.includes(c) ? yellowFill : { patternType: 'solid', fgColor: { rgb: 'D9E1F2' } },
-            border: { top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}} },
+        let fill;
+        if (c === yieldColIdx || c === cpYieldIdx || c === yieldGapIdx || c === devMapIdx) {
+            fill = yellowFill;
+        } else if (c >= waferStartIdx) {
+            fill = greenFill;
+        } else {
+            fill = blueFill;
+        }
+        ws[cellAddr].s = { font: { bold: true, name: 'Arial', sz: 10 }, fill,
+            border: { top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},
+                      left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}} },
             alignment: { horizontal: 'center', wrapText: true } };
     }
     for (let r = 1; r < wsData.length; r++) {
         for (let c = 0; c < headers.length; c++) {
             const cellAddr = XLSX.utils.encode_cell({ r, c });
             if (!ws[cellAddr]) ws[cellAddr] = { v: '', t: 's' };
+            const isYellow = (c === yieldColIdx || c === cpYieldIdx || c === yieldGapIdx || c === devMapIdx);
+            const isWafer  = c >= waferStartIdx;
             ws[cellAddr].s = { font: { name: 'Arial', sz: 10 },
-                fill: yellowCols.includes(c) ? { patternType: 'solid', fgColor: { rgb: 'FFFDE7' } } : {},
-                border: { top:{style:'thin',color:{rgb:'DDDDDD'}},bottom:{style:'thin',color:{rgb:'DDDDDD'}},left:{style:'thin',color:{rgb:'DDDDDD'}},right:{style:'thin',color:{rgb:'DDDDDD'}} },
-                alignment: { horizontal: c < 2 || c === 5 ? 'center' : 'right' } };
+                fill: isYellow ? { patternType:'solid', fgColor:{rgb:'FFFDE7'} }
+                     : isWafer ? { patternType:'solid', fgColor:{rgb:'F2F9EE'} } : {},
+                border: { top:{style:'thin',color:{rgb:'DDDDDD'}},bottom:{style:'thin',color:{rgb:'DDDDDD'}},
+                          left:{style:'thin',color:{rgb:'DDDDDD'}},right:{style:'thin',color:{rgb:'DDDDDD'}} },
+                alignment: { horizontal: c < 2 || c === devMapIdx ? 'center' : 'right' } };
         }
     }
     XLSX.utils.book_append_sheet(wb, ws, 'Summary');
@@ -2554,7 +2721,7 @@ document.getElementById('ulldDirFile').onchange   = e => ulldRegisterFiles(e.tar
 let ulldLotFiles = {};
 
 function ulldRegisterFiles(fileList) {
-  if (!checkFileSize(fileList)) return; // size guard
+  if (!checkFileSize(fileList, 'ulld')) return; // size guard
   const files = Array.from(fileList);
   ulldLotFiles = {};
   for (const f of files) {
@@ -2593,45 +2760,73 @@ async function ulldParseQC9(file) {
     const r = new FileReader();
     r.onload = e => {
       const text = e.target.result;
+      const lines = text.split(/\r?\n/);
       let runOn = '', yieldPct = '', partNo3 = '';
-      for (const line of text.split(/\r?\n/)) {
-        if (!runOn) { const m = line.match(/RUN\s+ON\s*[:\s]+(.+)/i); if (m) runOn = ulldParseRunOn(m[1].trim()); }
-        if (!partNo3) { const m = line.match(/PRODUCT\s*ID\s*[:\s]\s*(\S+)/i); if (m) partNo3 = m[1].trim().slice(-3); }
+      const waferYields = {};   // { '01': 100, '02': 95, ... }
+
+      // Parse overall fields
+      for (const line of lines) {
+        if (!runOn)   { const m = line.match(/RUN\s+ON\s*[:\s]+(.+)/i);           if (m) runOn   = ulldParseRunOn(m[1].trim()); }
+        if (!partNo3) { const m = line.match(/PRODUCT\s*ID\s*[:\s]\s*(\S+)/i);    if (m) partNo3 = m[1].trim().slice(-3); }
         const m2 = line.match(/Pass\s+Wafer\s*=.*?Yield\s*=\s*([\d.]+)%/i);
         if (m2) yieldPct = m2[1];
       }
-      res({ runOn, yieldPct, partNo3 });
+
+      // Parse per-wafer yield table
+      // Table rows look like:  "   01           20           20        PASS     100         100"
+      // Columns: WAFER_ID  TOTAL_SITES  PASS_SITES  STATUS  YIELD(%)  OOCRate(%)
+      let inTable = false;
+      for (const line of lines) {
+        if (/WAFER\s+ID\s+TOTAL\s+SITES/i.test(line)) { inTable = true; continue; }
+        if (inTable) {
+          if (/^[-\s]+$/.test(line)) continue;          // separator line
+          const m = line.match(/^\s*(\d{2})\s+(\d+)\s+(\d+)\s+\S+\s+([\d.]+)/);
+          if (m) {
+            waferYields[m[1]] = parseFloat(m[4]);
+          } else if (line.trim() === '') {
+            inTable = false;                             // blank line = table end
+          }
+        }
+      }
+
+      res({ runOn, yieldPct, partNo3, waferYields });
     };
     r.readAsText(file);
   });
 }
 
 // ── Parse .raw.xls (tab-separated text) ──────────────────────
+// Returns { avgs:{param:overall_avg} }  — per-wafer yield comes from qc9
 async function ulldParseRaw(file) {
   return new Promise(res => {
     const r = new FileReader();
     r.onload = e => {
       const lines = e.target.result.split(/\r?\n/);
+
+      // Find parameter header
       let headers = [];
       for (const l of lines) { if (/^Parameter/i.test(l)) { headers = l.split('\t').map(s=>s.trim()); break; } }
       const colIdx = {};
       for (const p of ULLD_PARAMS) { const i = headers.indexOf(p); if (i>=0) colIdx[p]=i; }
+
+      // Collect all data rows (skip '?' fails)
       const dataRows = [];
       for (const l of lines) { if (/^\d{2}_\d+/.test(l.trim())) dataRows.push(l.split('\t')); }
+
+      // Overall average per param
       const avgs = {};
       for (const p of ULLD_PARAMS) {
-        const ci = colIdx[p];
-        if (ci===undefined) { avgs[p]=''; continue; }
+        const ci = colIdx[p]; if (ci===undefined) { avgs[p]=''; continue; }
         const vals = [];
         for (const row of dataRows) {
           const raw = (row[ci]||'').trim();
           if (!raw || raw.startsWith('?')) continue;
-          const n = parseFloat(raw);
-          if (!isNaN(n)) vals.push(n);
+          const n = parseFloat(raw); if (!isNaN(n)) vals.push(n);
         }
         avgs[p] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : '';
       }
-      res(avgs);
+
+      res({ avgs });
     };
     r.readAsText(file);
   });
@@ -2653,11 +2848,16 @@ document.getElementById('ulldBtnProcess').addEventListener('click', async functi
   for (const lot of keys) {
     const { qc, raw } = ulldLotFiles[lot];
     try {
-      let runOn='', yieldPct='', partNo3='', avgs={};
-      if (qc)  { const r = await ulldParseQC9(qc); runOn=r.runOn; yieldPct=r.yieldPct; partNo3=r.partNo3; }
-      if (raw) { avgs = await ulldParseRaw(raw); }
+      let runOn='', yieldPct='', partNo3='', waferYields={}, avgs={};
+      if (qc)  { const r = await ulldParseQC9(qc); runOn=r.runOn; yieldPct=r.yieldPct; partNo3=r.partNo3; waferYields=r.waferYields||{}; }
+      if (raw) { const rr = await ulldParseRaw(raw); avgs=rr.avgs; }
       const row = { Lot_No: lot, RUN_ON: runOn, 'Yield(%)': yieldPct!=='' ? parseFloat(yieldPct) : '', 'Part No': partNo3 };
       ULLD_PARAMS.forEach(p => { row[p] = avgs[p]!==undefined&&avgs[p]!=='' ? avgs[p] : ''; });
+      // Per-wafer yield from qc9 WAFER SUMMARY table (#1~#25)
+      for (let w=1; w<=25; w++) {
+        const key = String(w).padStart(2,'0');
+        row[`#${w}`] = waferYields[key]!==undefined ? waferYields[key] : '';
+      }
       ulldData.push(row);
       ulldRawRows.push(row);
       ulldLog(`✓ ${lot}  [${partNo3}]  RUN ON: ${runOn}  Yield: ${yieldPct}%`);
@@ -2870,21 +3070,120 @@ document.getElementById('ulldBtnExportPng').addEventListener('click', function()
   },'image/png');
 });
 
+// ── ULLD CP DataBase import ───────────────────────────────────
+let ulldCpMap = {};   // { [Lot_No]: cpYield }
+
+document.getElementById('ulldDbFile').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
+      // Find "Yield Summary" sheet
+      const sheetName = wb.SheetNames.find(s => /yield\s*summary/i.test(s));
+      if (!sheetName) throw new Error('"Yield Summary" sheet not found in ' + file.name);
+      const ws = wb.Sheets[sheetName];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+      // ULLD_DataBase "Yield Summary" layout (fixed):
+      //   row 0: section headers (merged cells)
+      //   row 1: sub-headers
+      //   row 2: column headers  col0="Lot Num #"  col9="CP  Yield " (merged, trailing spaces)
+      //   row 3+: data
+      // Because XLSX.read flattens merged cells, col9 header may appear empty in JS.
+      // We use fixed positions which match the known file structure.
+      const lotCol = 0, cpCol = 9, dataStartRow = 3;
+      ulldLog(`[ULLD-DB] Using fixed layout: lotCol=${lotCol}, cpCol=${cpCol}, dataStart=${dataStartRow}`);
+
+      ulldCpMap = {};
+      let count = 0;
+      for (let i = dataStartRow; i < aoa.length; i++) {
+        const row = aoa[i];
+        const lot = String(row[lotCol]||'').trim();
+        const cpv = row[cpCol];
+        if (!lot || lot === '' || !/^RP/i.test(lot)) continue;
+        const cpNum = parseFloat(cpv);
+        if (!isNaN(cpNum)) { ulldCpMap[lot] = cpNum; count++; }
+      }
+
+      document.getElementById('ulldDbStatus').textContent = `✅ Loaded ${count} lots from "${sheetName}" (${file.name})`;
+      document.getElementById('ulldDbSummaryText').textContent = `CP Yield 已載入 ${count} lots`;
+      document.getElementById('ulldDbSummary').style.display = 'block';
+      document.getElementById('ulldBtnClearDb').style.display = 'block';
+      ulldLog(`[ULLD-DB] Loaded ${count} CP Yield entries from ${file.name}`);
+      ulldUpdateDownloadBtnLabel();
+    } catch(err) {
+      document.getElementById('ulldDbStatus').textContent = `⚠ Load failed: ${err.message}`;
+      ulldLog(`[ULLD-DB] Error: ${err.message}`);
+    }
+  };
+  r.readAsArrayBuffer(file);
+});
+
+document.getElementById('ulldBtnClearDb').addEventListener('click', function() {
+  ulldCpMap = {};
+  document.getElementById('ulldDbFile').value = '';
+  document.getElementById('ulldDbStatus').textContent = 'No file loaded.';
+  document.getElementById('ulldDbSummary').style.display = 'none';
+  this.style.display = 'none';
+  ulldLog('[ULLD-DB] CP DataBase cleared.');
+  ulldUpdateDownloadBtnLabel();
+});
+
+function ulldUpdateDownloadBtnLabel() {
+  const hasCp = Object.keys(ulldCpMap).length > 0;
+  const btn = document.getElementById('ulldBtnDownload');
+  btn.textContent = hasCp
+    ? '⬇ Download ULLD_WAT_CP_Summary XLSX'
+    : '⬇ Download ULLD_WAT_Summary XLSX';
+}
+
 // ── Download XLSX ─────────────────────────────────────────────
 document.getElementById('ulldBtnDownload').addEventListener('click', function() {
   if (!ulldRawRows.length) return;
   const today = new Date();
   const ymd = today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
-  const headers = ['Lot_No','RUN_ON','Yield(%)','Part No',...ULLD_PARAMS];
-  const wsData = [headers, ...ulldRawRows.map(r => headers.map(h => {
-    const v = r[h]; return (v!==undefined&&v!=='') ? v : '';
-  }))];
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:12},{wch:18},{wch:10},{wch:10},...ULLD_PARAMS.map(()=>({wch:13}))];
-  XLSX.utils.book_append_sheet(wb, ws, 'WAT_Summary');
-  XLSX.writeFile(wb, `ULLD_WAT_Summary_${ymd}.xlsx`);
-  ulldLog(`[ULLD] Downloaded ULLD_WAT_Summary_${ymd}.xlsx`);
+  const hasCpDb = Object.keys(ulldCpMap).length > 0;
+
+  if (hasCpDb) {
+    // CP DataBase imported → add CP Yield (col4) and Yield gap (col5); col3 header = WAT Yield
+    const waferCols = Array.from({length:25},(_,i)=>`#${i+1}`);
+    const headers = ['Lot_No','RUN_ON','WAT Yield','CP Yield','Yield gap','Part No',...ULLD_PARAMS,...waferCols];
+    const wsData = [headers, ...ulldRawRows.map(r => {
+      const watYield = (r['Yield(%)']!==undefined&&r['Yield(%)']!=='') ? parseFloat(r['Yield(%)']) : '';
+      const cpYield  = ulldCpMap[r['Lot_No']] !== undefined ? ulldCpMap[r['Lot_No']] : '';
+      const gap      = (watYield!==''&&cpYield!=='') ? parseFloat((watYield - cpYield).toFixed(4)) : '';
+      return [
+        r['Lot_No']   || '',
+        r['RUN_ON']   || '',
+        watYield,
+        cpYield,
+        gap,
+        r['Part No']  || '',
+        ...ULLD_PARAMS.map(p => (r[p]!==undefined&&r[p]!=='') ? r[p] : ''),
+        ...waferCols.map(h => (r[h]!==undefined&&r[h]!=='') ? r[h] : '')
+      ];
+    })];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:12},{wch:18},{wch:10},{wch:10},{wch:10},{wch:10},...ULLD_PARAMS.map(()=>({wch:13})),...waferCols.map(()=>({wch:7}))];
+    XLSX.utils.book_append_sheet(wb, ws, 'WAT_CP_Summary');
+    XLSX.writeFile(wb, `ULLD_WAT_CP_Summary_${ymd}.xlsx`);
+    ulldLog(`[ULLD] Downloaded ULLD_WAT_CP_Summary_${ymd}.xlsx (with CP Yield & Yield gap)`);
+  } else {
+    // No CP DataBase → original mode + #1~#25 wafer yields
+    const waferCols = Array.from({length:25},(_,i)=>`#${i+1}`);
+    const headers = ['Lot_No','RUN_ON','Yield(%)','Part No',...ULLD_PARAMS,...waferCols];
+    const wsData = [headers, ...ulldRawRows.map(r => headers.map(h => {
+      const v = r[h]; return (v!==undefined&&v!=='') ? v : '';
+    }))];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:12},{wch:18},{wch:10},{wch:10},...ULLD_PARAMS.map(()=>({wch:13})),...waferCols.map(()=>({wch:7}))];
+    XLSX.utils.book_append_sheet(wb, ws, 'WAT_Summary');
+    XLSX.writeFile(wb, `ULLD_WAT_Summary_${ymd}.xlsx`);
+    ulldLog(`[ULLD] Downloaded ULLD_WAT_Summary_${ymd}.xlsx`);
+  }
 });
 
 // ═══════════════════════════════════════════════════════════
