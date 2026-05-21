@@ -1153,10 +1153,16 @@ let ulldSizeLimitOff = false;
 
 // caller passes optional panel id: 'lld' | 'ulld' | undefined (= always check)
 function checkFileSize(files, panel) {
-  if (panel === 'lld'  && lldSizeLimitOff)  return true;
-  if (panel === 'ulld' && ulldSizeLimitOff) return true;
   const totalBytes = Array.from(files).reduce((sum, f) => sum + f.size, 0);
   if (totalBytes <= FILE_SIZE_LIMIT_BYTES) return true;
+
+  // Limit is bypassed for this panel → show confirmation instead of hard block
+  const limitOff = (panel === 'lld' && lldSizeLimitOff) || (panel === 'ulld' && ulldSizeLimitOff);
+  if (limitOff) {
+    const mb = (totalBytes / 1024 / 1024).toFixed(1);
+    return confirm(`檔案大小 ${mb} MB，超過 9MB 限制。\n確定仍要上傳嗎？`);
+  }
+
   showFileSizeAlert();
   return false;
 }
@@ -1203,12 +1209,16 @@ function showFileSizeAlert() {
 }
 
 function attachFileSizeGuards() {
+  // ulldMultiFile / ulldDirFile are handled by ulldRegisterFiles which calls
+  // checkFileSize directly — skip them here to avoid double-checking
+  const skipIds = new Set(['ulldMultiFile', 'ulldDirFile']);
+
   document.querySelectorAll('input[type="file"]').forEach(input => {
     if (input.dataset.sizeGuard) return;
+    if (skipIds.has(input.id)) { input.dataset.sizeGuard = '1'; return; }
     input.dataset.sizeGuard = '1';
     input.addEventListener('change', function(e) {
       if (!this.files || this.files.length === 0) return;
-      // Detect which panel this input belongs to
       const panel = this.closest('#page-ulld') ? 'ulld'
                   : this.closest('#page-wat')  ? 'lld'
                   : undefined;
