@@ -1242,6 +1242,22 @@ function toggleSizeLimit(panel) {
     tog.classList.toggle('off', lldSizeLimitOff);
     lbl.textContent = lldSizeLimitOff ? '9MB限制 ✕' : '9MB限制';
     lbl.style.color  = lldSizeLimitOff ? '#c0392b' : '#6c757d';
+    // If limit just turned OFF, check pending LLD file inputs
+    if (lldSizeLimitOff) {
+      ['mappingFileGen','watFolderInput','cpDailyInput'].forEach(id => {
+        const inp = document.getElementById(id);
+        if (inp && inp.files && inp.files.length > 0) {
+          const total = Array.from(inp.files).reduce((s,f)=>s+f.size,0);
+          if (total > FILE_SIZE_LIMIT_BYTES) {
+            const mb = (total/1024/1024).toFixed(1);
+            if (!confirm(`已選檔案 ${mb} MB，超過 9MB 限制。
+確定仍要上傳嗎？`)) {
+              inp.value = '';
+            }
+          }
+        }
+      });
+    }
   } else {
     ulldSizeLimitOff = !ulldSizeLimitOff;
     const tog = document.getElementById('ulldSizeToggle');
@@ -1249,6 +1265,27 @@ function toggleSizeLimit(panel) {
     tog.classList.toggle('off', ulldSizeLimitOff);
     lbl.textContent = ulldSizeLimitOff ? '9MB限制 ✕' : '9MB限制';
     lbl.style.color  = ulldSizeLimitOff ? '#c0392b' : '#6c757d';
+    // If limit just turned OFF, check pending ULLD files already registered
+    if (ulldSizeLimitOff && Object.keys(ulldLotFiles).length > 0) {
+      // Calculate total size of already-registered lot files
+      let total = 0;
+      for (const lot of Object.values(ulldLotFiles)) {
+        if (lot.qc)  total += lot.qc.size;
+        if (lot.raw) total += lot.raw.size;
+      }
+      if (total > FILE_SIZE_LIMIT_BYTES) {
+        const mb = (total/1024/1024).toFixed(1);
+        if (!confirm(`已選檔案共 ${mb} MB，超過 9MB 限制。
+確定仍要上傳嗎？`)) {
+          // User cancelled → clear registered files
+          ulldLotFiles = {};
+          document.getElementById('ulldMultiFile').value = '';
+          document.getElementById('ulldDirFile').value   = '';
+          document.getElementById('ulldFileStatus').textContent = 'No files loaded.';
+          document.getElementById('ulldBtnProcess').disabled = true;
+        }
+      }
+    }
   }
 }
 
