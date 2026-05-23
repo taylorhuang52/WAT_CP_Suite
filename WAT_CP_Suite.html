@@ -1053,6 +1053,26 @@
     <!-- ZIP Merge -->
     <div class="hm-group">
       <h2>ZIP 合併 CSV</h2>
+
+      <!-- ZIP Path Search -->
+      <div id="zipSearchBox" style="background:#f0f6f4;border:1px solid #c4d8d2;border-radius:6px;padding:8px 10px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:600;color:#3a5f58;margin-bottom:4px;">🔍 ZIP 路徑搜尋</div>
+
+        <!-- Step 1: folder picker -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <button class="hm-btn" id="btnPickFolder" style="padding:3px 8px;font-size:11px;white-space:nowrap;flex-shrink:0;">📁 選擇資料夾</button>
+          <span id="zipFolderName" style="font-size:11px;color:#5a706a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">尚未選擇</span>
+        </div>
+
+        <!-- Step 2: Lot No. + Search -->
+        <label for="zipLotInput" style="font-size:11px;">Lot No.</label>
+        <div style="display:flex;gap:4px;">
+          <input id="zipLotInput" type="text" placeholder="例：RX123456" style="flex:1;font-size:11px;">
+          <button class="hm-btn" id="btnSearchZip" style="padding:3px 8px;font-size:11px;white-space:nowrap;">🔎 Search</button>
+        </div>
+        <div id="zipSearchStatus" style="font-size:11px;color:#5a706a;margin-top:5px;min-height:14px;"></div>
+      </div>
+
       <label for="zipFile">ZIP 檔</label>
       <input id="zipFile" type="file" accept=".zip,application/zip">
       <label for="headerFile">表頭 CSV</label>
@@ -1104,14 +1124,15 @@
       <h2>單片放大</h2>
       <label for="mode">模式</label>
       <select id="mode">
-        <option value="overview">總覽</option>
         <option value="detail">單片含數值</option>
+        <option value="overview">總覽</option>
       </select>
       <label>片號</label>
       <div class="wafer-list" id="waferList"></div>
       <div class="hm-buttons">
         <button class="hm-btn" id="selectAllBtn" disabled>全選</button>
         <button class="hm-btn" id="selectNoneBtn" disabled>全清</button>
+        <button class="hm-btn primary" id="renderBtn2" disabled>產生</button>
       </div>
     </div>
 
@@ -2256,7 +2277,7 @@ const hmEls = {
     zipFile: $("zipFile"), headerFile: $("headerFile"), mergeBtn: $("mergeBtn"), mergeStatus: $("mergeStatus"),
     csvFile: $("csvFile"), fileStatus: $("fileStatus"), topStatus: $("topStatus"),
     title: $("hmTitle"), column: $("column"), presets: $("presets"), lo: $("lo"), hi: $("hi"),
-    renderBtn: $("renderBtn"), downloadBtn: $("downloadBtn"), mode: $("mode"), waferList: $("waferList"),
+    renderBtn: $("renderBtn"), renderBtn2: $("renderBtn2"), downloadBtn: $("downloadBtn"), mode: $("mode"), waferList: $("waferList"),
     selectAllBtn: $("selectAllBtn"), selectNoneBtn: $("selectNoneBtn"), empty: $("hmEmpty"),
     canvasShell: $("canvasShell"), canvas: $("canvas")
 };
@@ -2264,6 +2285,140 @@ const hmEls = {
 let hmRecords = [];
 let hmHeaders = [];
 let fileBaseName = "wafer";
+
+// ── ZIP 路徑搜尋 ──────────────────────────────────────────────
+(function initZipSearch() {
+  const folderNameEl = document.getElementById("zipFolderName");
+  const lotInput     = document.getElementById("zipLotInput");
+  const pickBtn      = document.getElementById("btnPickFolder");
+  const searchBtn    = document.getElementById("btnSearchZip");
+  const statusEl     = document.getElementById("zipSearchStatus");
+  const zipFileInput = document.getElementById("zipFile");
+
+  let dirHandle = null;
+
+  function setStatus(msg, color) {
+    statusEl.style.color = color || "#5a706a";
+    statusEl.innerHTML = msg;
+  }
+
+  function showFolder(name) {
+    folderNameEl.textContent = name;
+    folderNameEl.title = name;
+  }
+
+  // ── IndexedDB helpers ──────────────────────────────────────
+  const IDB_NAME    = "wat_cp_suite";
+  const IDB_STORE   = "handles";
+  const IDB_KEY_DIR = "zip_dir_handle";
+  const IDB_KEY_NAME = "zip_dir_name";
+
+  function openDB() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+  }
+
+  async function idbSet(key, value) {
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => res();
+      tx.onerror    = e => rej(e.target.error);
+    });
+  }
+
+  async function idbGet(key) {
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+  }
+
+  // ── 啟動時還原上次資料夾 ───────────────────────────────────
+  async function restoreFolder() {
+    try {
+      const savedHandle = await idbGet(IDB_KEY_DIR);
+      const savedName   = await idbGet(IDB_KEY_NAME);
+      if (!savedHandle) return;
+
+      // Re-verify permission (user may need to re-grant after browser restart)
+      const perm = await savedHandle.queryPermission({ mode: "read" });
+      if (perm === "granted") {
+        dirHandle = savedHandle;
+        showFolder(savedName || dirHandle.name);
+        setStatus("✅ 已還原上次資料夾：<b>" + dirHandle.name + "</b>　輸入 Lot No. 按 Search 即可。", "#126c5a");
+      } else {
+        // Need to re-prompt once
+        showFolder((savedName || "上次資料夾") + "（需重新授權）");
+        setStatus("🔒 上次資料夾需重新授權，請按「📁 選擇資料夾」一次。", "#8a5a00");
+      }
+    } catch(e) { /* silent */ }
+  }
+  restoreFolder();
+
+  // ① 選擇資料夾
+  pickBtn.addEventListener("click", async () => {
+    if (!window.showDirectoryPicker) {
+      setStatus("⚠️ 此瀏覽器不支援（請用 Chrome / Edge）。", "#a13b2f");
+      return;
+    }
+    try {
+      const handle = await window.showDirectoryPicker({ mode: "read" });
+      dirHandle = handle;
+      showFolder(handle.name);
+      // Persist handle + name to IndexedDB
+      await idbSet(IDB_KEY_DIR,  handle);
+      await idbSet(IDB_KEY_NAME, handle.name);
+      setStatus("✅ 已授權並記住資料夾：<b>" + handle.name + "</b>　下次開啟自動還原。", "#126c5a");
+    } catch(e) {
+      if (e.name !== "AbortError")
+        setStatus("❌ 無法開啟資料夾：" + e.message, "#a13b2f");
+    }
+  });
+
+  // ② Search
+  searchBtn.addEventListener("click", async () => {
+    const lot = lotInput.value.trim();
+    if (!lot)       { setStatus("⚠️ 請輸入 Lot No.", "#a13b2f"); return; }
+    if (!dirHandle) { setStatus("⚠️ 請先按「📁 選擇資料夾」授權目錄。", "#a13b2f"); return; }
+
+    const zipName = lot + ".zip";
+    setStatus("🔎 搜尋中：" + zipName + " ...", "#1565a8");
+
+    try {
+      // Re-request permission if needed (handles browser restart scenario)
+      const perm = await dirHandle.requestPermission({ mode: "read" });
+      if (perm !== "granted") { setStatus("❌ 未獲得資料夾存取權限。", "#a13b2f"); return; }
+
+      const fileHandle = await dirHandle.getFileHandle(zipName, { create: false });
+      const file = await fileHandle.getFile();
+
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      zipFileInput.files = dt.files;
+      zipFileInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+      setStatus("✅ 已找到：<b>" + zipName + "</b>（" + (file.size / 1024).toFixed(0) + " KB）— 可直接按「合併並下載 CSV」。", "#126c5a");
+    } catch(e) {
+      if (e.name === "NotFoundError")
+        setStatus("❌ 找不到 <b>" + zipName + "</b>，請確認資料夾或 Lot No. 是否正確。", "#a13b2f");
+      else
+        setStatus("❌ 讀取失敗：" + e.message, "#a13b2f");
+    }
+  });
+
+  // ③ Enter 鍵觸發 Search
+  lotInput.addEventListener("keydown", e => { if (e.key === "Enter") searchBtn.click(); });
+})();
+// ─────────────────────────────────────────────────────────────
 
 hmEls.mergeBtn.addEventListener("click", mergeZipCsv);
 hmEls.csvFile.addEventListener("change", loadCsvFile);
@@ -2276,6 +2431,7 @@ hmEls.hi.addEventListener("change", renderIfReady);
 hmEls.title.addEventListener("change", renderIfReady);
 hmEls.selectAllBtn.addEventListener("click", () => setAllWafers(true));
 hmEls.selectNoneBtn.addEventListener("click", () => setAllWafers(false));
+hmEls.renderBtn2.addEventListener("click", renderIfReady);
 
 async function mergeZipCsv() {
     const zipFile = hmEls.zipFile.files && hmEls.zipFile.files[0];
@@ -2529,7 +2685,7 @@ function applyDefaultTitle() {
 }
 
 function enableHmControls(enabled) {
-    for (const el of [hmEls.renderBtn, hmEls.downloadBtn, hmEls.selectAllBtn, hmEls.selectNoneBtn]) el.disabled = !enabled;
+    for (const el of [hmEls.renderBtn, hmEls.renderBtn2, hmEls.downloadBtn, hmEls.selectAllBtn, hmEls.selectNoneBtn]) el.disabled = !enabled;
 }
 
 function selectedColumn() { return hmEls.column.value; }
