@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wat-cp-suite-v1';
+const CACHE_NAME = 'wat-cp-suite-v2';
 const ASSETS = [
   'WAT_CP_Suite.html',
   'manifest.json',
