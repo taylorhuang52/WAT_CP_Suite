@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -639,17 +639,17 @@
     </div>
     <div class="login-subtitle">Wafer Analysis &amp; Control Platform</div>
 
-    <div class="login-label">存取密碼</div>
+    <div class="login-label">Access Password</div>
     <div class="login-input-wrap">
       <input
         id="login-pw-input"
         class="login-input"
         type="password"
-        placeholder="請輸入密碼"
+        placeholder="Enter password"
         autocomplete="current-password"
         onkeydown="if(event.key==='Enter') doLogin()"
       />
-      <button class="login-eye-btn" onclick="togglePwVis()" title="顯示/隱藏密碼" type="button">
+      <button class="login-eye-btn" onclick="togglePwVis()" title="Show/Hide Password" type="button">
         <svg id="eye-icon-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
           <circle cx="12" cy="12" r="3"/>
@@ -663,10 +663,10 @@
     </div>
     <div class="login-error-msg" id="login-error-msg">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      密碼錯誤，請重試
+      Incorrect password, please try again
     </div>
-    <button class="login-btn" onclick="doLogin()">登　入</button>
-    <div class="login-footer">WAT / CP Suite &nbsp;·&nbsp; 2026 &nbsp;·&nbsp; 僅限授權使用</div>
+    <button class="login-btn" onclick="doLogin()">Login</button>
+    <div class="login-footer">WAT / CP Suite &nbsp;·&nbsp; 2026 &nbsp;·&nbsp; Authorized Use Only</div>
   </div>
 </div>
 
@@ -695,8 +695,8 @@
     <div class="wat-card mobile-hidden">
       <div class="wat-card-title" style="display:flex;align-items:center;justify-content:space-between;">
         <span>📁 Generate WAT Summary</span>
-        <label title="關閉後不限制上傳檔案大小" style="display:flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:400;color:#6c757d;cursor:pointer;white-space:nowrap;">
-          <span id="lldSizeLimitLabel">9MB限制</span>
+        <label title="Disable 9MB upload size limit" style="display:flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:400;color:#6c757d;cursor:pointer;white-space:nowrap;">
+          <span id="lldSizeLimitLabel">9MB Limit</span>
           <div class="sz-toggle" id="lldSizeToggle" onclick="toggleSizeLimit('lld')" aria-label="9MB limit toggle">
             <div class="sz-knob"></div>
           </div>
@@ -733,29 +733,29 @@
 
       <div class="section-divider" style="margin-top:14px;"></div>
 
-      <!-- 🔗 二次 Mapping File -->
-      <div class="wat-card-title" style="margin-bottom:8px; margin-top:4px;">🔗 二次 Mapping File
-        <span style="font-size:0.7rem;font-weight:400;background:#c3f5da;color:#1a5c38;border:1px solid #74c69d;border-radius:4px;padding:1px 7px;margin-left:6px;">左右兩側共用 · 以 Lot no. 對應 Device</span>
+      <!-- 🔗 Secondary Mapping File -->
+      <div class="wat-card-title" style="margin-bottom:8px; margin-top:4px;">🔗 Secondary Mapping File
+        <span style="font-size:0.7rem;font-weight:400;background:#c3f5da;color:#1a5c38;border:1px solid #74c69d;border-radius:4px;padding:1px 7px;margin-left:6px;">Shared across both panels · Maps Lot no. to Device</span>
       </div>
       <input type="file" id="secondaryMappingFile" class="form-control form-control-sm mb-1" accept=".xlsx,.xls">
-      <div id="smbStatus" style="font-size:0.79rem;color:#666;margin-top:2px;margin-bottom:10px;">⏳ 尚未載入。上傳後以 Lot no. 覆寫 Device Mapping。</div>
+      <div id="smbStatus" style="font-size:0.79rem;color:#666;margin-top:2px;margin-bottom:10px;">⏳ Not loaded. Will overwrite Device Mapping by Lot no. after upload.</div>
 
       <div class="section-divider"></div>
 
       <!-- 📥 WAT_CP_Summary Import -->
       <div class="wat-card-title" style="margin-bottom:8px; margin-top:4px;">📥 WAT_CP_Summary Import
-        <span style="font-size:0.7rem;font-weight:400;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 7px;margin-left:6px;">供右側 Plot 使用</span>
+        <span style="font-size:0.7rem;font-weight:400;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 7px;margin-left:6px;">Used by Plot panel</span>
       </div>
 
       <!-- Auto-detect in-session -->
       <div id="cpSumAutoBar" style="display:none; background:#f0fff4; border:1px solid #74c69d; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:0.81rem;">
         <span id="cpSumAutoMsg" style="color:#1a5c38; font-weight:600;"></span>
-        <button id="btnUseCPSumAuto" class="btn btn-sm btn-success ms-2" style="font-size:0.78rem; padding:1px 10px;">✅ 使用此 Report</button>
+        <button id="btnUseCPSumAuto" class="btn btn-sm btn-success ms-2" style="font-size:0.78rem; padding:1px 10px;">✅ Use Auto-detected</button>
       </div>
 
-      <label style="font-size:0.82rem; color:#6c757d; margin-bottom:4px; display:block;">或手動匯入 WAT_CP_Summary XLSX：</label>
+      <label style="font-size:0.82rem; color:#6c757d; margin-bottom:4px; display:block;">Or import WAT_CP_Summary XLSX manually:</label>
       <input type="file" id="cpSummaryImportFile" class="form-control form-control-sm mb-1" accept=".xlsx,.xls,.csv">
-      <div id="cpSumImportStatus" style="font-size:0.79rem; color:#666; margin-top:2px; margin-bottom:10px;">⏳ 尚未載入。</div>
+      <div id="cpSumImportStatus" style="font-size:0.79rem; color:#666; margin-top:2px; margin-bottom:10px;">⏳ Not loaded.</div>
 
       <button id="btnGenerateFTP" class="btn btn-info w-100 mt-1" disabled style="font-weight:600; color:#fff;">
         ⬇ Generate &amp; Download FTP 2nd Mapping Summary
@@ -771,7 +771,7 @@
         <span class="shared-badge">shared from Generate section</span>
         <span id="mapStatusPlot" class="d-block mt-1 text-muted">Load mapping in section above.</span>
         <div class="mt-2" style="border-top:1px solid #cce5ff; padding-top:8px;">
-          <label style="font-size:0.78rem; color:#6c757d; margin-bottom:3px; display:block;">或另選 Mapping File：</label>
+          <label style="font-size:0.78rem; color:#6c757d; margin-bottom:3px; display:block;">Or select another Mapping File:</label>
           <input type="file" id="mappingFilePlot" class="form-control form-control-sm" accept=".xlsx,.xls,.csv">
         </div>
       </div>
@@ -789,7 +789,7 @@
         <span class="shared-badge" style="background:#fff3cd;color:#856404;border-color:#ffc107;">shared from left panel</span>
         <span id="dailyReportStatusPlot" class="d-block mt-1 text-muted">Load DailyReport in the left panel above.</span>
         <div class="mt-2" style="border-top:1px solid #ffe082; padding-top:8px;">
-          <label style="font-size:0.78rem; color:#6c757d; margin-bottom:3px; display:block;">或另選 CP DailyReport：</label>
+          <label style="font-size:0.78rem; color:#6c757d; margin-bottom:3px; display:block;">Or select another CP DailyReport:</label>
           <input type="file" id="dailyReportFilePlot" class="form-control form-control-sm" accept=".xlsx,.xls">
         </div>
       </div>
@@ -872,8 +872,8 @@
     <div class="wat-card">
       <div class="wat-card-title" style="display:flex;align-items:center;justify-content:space-between;">
         <span>⚡ ULLD WAT Files Processor</span>
-        <label title="關閉後不限制上傳檔案大小" style="display:flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:400;color:#6c757d;cursor:pointer;white-space:nowrap;">
-          <span id="ulldSizeLimitLabel">9MB限制</span>
+        <label title="Disable 9MB upload size limit" style="display:flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:400;color:#6c757d;cursor:pointer;white-space:nowrap;">
+          <span id="ulldSizeLimitLabel">9MB Limit</span>
           <div class="sz-toggle sz-toggle-teal" id="ulldSizeToggle" onclick="toggleSizeLimit('ulld')" aria-label="9MB limit toggle">
             <div class="sz-knob"></div>
           </div>
@@ -935,12 +935,12 @@
       <div class="section-divider mt-2"></div>
 
       <div style="font-size:0.82rem; color:#555; background:#f0faf5; border-radius:6px; padding:8px 10px; margin-top:4px;">
-        <div class="fw-bold mb-1" style="color:#1a7a5e;">載入後說明</div>
+        <div class="fw-bold mb-1" style="color:#1a7a5e;">After loading</div>
         <ul style="padding-left:1.1rem; margin:0; line-height:1.7;">
-          <li>讀取 <code>Yield Summary</code> 頁面</li>
-          <li>比對 <strong>Lot No</strong> 加入 <strong>CP Yield</strong></li>
-          <li>計算 <strong>Yield gap</strong> = WAT Yield − CP Yield</li>
-          <li>下載檔名改為 <code>ULLD_WAT_CP_Summary_yyyymmdd.xlsx</code></li>
+          <li>Reads the <code>Yield Summary</code> sheet</li>
+          <li>Matches <strong>Lot No</strong> and appends <strong>CP Yield</strong></li>
+          <li>Calculates <strong>Yield gap</strong> = WAT Yield − CP Yield</li>
+          <li>Download filename: <code>ULLD_WAT_CP_Summary_yyyymmdd.xlsx</code></li>
         </ul>
       </div>
 
@@ -959,14 +959,14 @@
 
       <div class="row g-2 align-items-end mb-2">
         <div class="col-6">
-          <label class="fw-bold mb-1" style="font-size:0.85rem;">X 軸</label>
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">X Axis</label>
           <select id="ulldXAxisSelect" class="form-select form-select-sm">
             <option value="Lot_No">Lot No</option>
-            <option value="RUN_ON">RUN ON (時間軸)</option>
+            <option value="RUN_ON">RUN ON (Timeline)</option>
           </select>
         </div>
         <div class="col-6">
-          <label class="fw-bold mb-1" style="font-size:0.85rem;">Y 軸 (測項)</label>
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">Y Axis (Parameter)</label>
           <select id="ulldYAxisSelect" class="form-select form-select-sm">
             <option value="Yield(%)" selected>Yield (%)</option>
             <optgroup label="WAT Parameters">
@@ -1003,7 +1003,7 @@
       <div class="section-divider mt-3"></div>
 
       <div style="font-size:0.82rem; color:#666; background:#f8f9fa; border-radius:6px; padding:8px 10px;">
-        <span style="font-weight:600;">資料筆數：</span><span id="ulldRowCount">0</span>　
+        <span style="font-weight:600;">Records:</span><span id="ulldRowCount">0</span>　
         <span style="font-weight:600;">Lots：</span><span id="ulldLotCount">0</span>　
         <span style="font-weight:600;">Part No：</span><span id="ulldPartCount">0</span>
       </div>
@@ -1052,99 +1052,99 @@
 
     <!-- ZIP Merge -->
     <div class="hm-group">
-      <h2>ZIP 合併 CSV</h2>
+      <h2>ZIP Merge CSV</h2>
 
       <!-- ZIP Path Search -->
       <div id="zipSearchBox" style="background:#f0f6f4;border:1px solid #c4d8d2;border-radius:6px;padding:8px 10px;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:600;color:#3a5f58;margin-bottom:4px;">🔍 ZIP 路徑搜尋</div>
+        <div style="font-size:11px;font-weight:600;color:#3a5f58;margin-bottom:4px;">🔍 ZIP Path Search</div>
 
         <!-- Step 1: folder picker -->
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-          <button class="hm-btn" id="btnPickFolder" style="padding:3px 8px;font-size:11px;white-space:nowrap;flex-shrink:0;">📁 選擇資料夾</button>
-          <span id="zipFolderName" style="font-size:11px;color:#5a706a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">尚未選擇</span>
+          <button class="hm-btn" id="btnPickFolder" style="padding:3px 8px;font-size:11px;white-space:nowrap;flex-shrink:0;">📁 Select Folder</button>
+          <span id="zipFolderName" style="font-size:11px;color:#5a706a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Not selected</span>
         </div>
 
         <!-- Step 2: Lot No. + Search -->
         <label for="zipLotInput" style="font-size:11px;">Lot No.</label>
         <div style="display:flex;gap:4px;">
-          <input id="zipLotInput" type="text" placeholder="例：RX123456" style="flex:1;font-size:11px;">
+          <input id="zipLotInput" type="text" placeholder="e.g. RX123456" style="flex:1;font-size:11px;">
           <button class="hm-btn" id="btnSearchZip" style="padding:3px 8px;font-size:11px;white-space:nowrap;">🔎 Search</button>
         </div>
         <div id="zipSearchStatus" style="font-size:11px;color:#5a706a;margin-top:5px;min-height:14px;"></div>
       </div>
 
-      <label for="zipFile">單批 Lot ZIP 檔</label>
+      <label for="zipFile">Single Lot ZIP</label>
       <input id="zipFile" type="file" accept=".zip,application/zip">
-      <label for="headerFile" title="EK/RK/NK → LLD；RP → ULLD（可不選，自動依 ZIP 檔名判斷）">表頭 CSV <span style="font-weight:400;color:#888;font-size:10px;">（選填，自動依 Lot No. 判斷）</span></label>
+      <label for="headerFile" title="EK/RK/NK → LLD; RP → ULLD (optional, auto-detected from ZIP filename)">Header CSV <span style="font-weight:400;color:#888;font-size:10px;">(optional, auto-detected by Lot No.)</span></label>
       <input id="headerFile" type="file" accept=".csv,text/csv">
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <button class="hm-btn" id="btnLLD" style="background:#e8f4fd;border-color:#90c8f0;color:#1565a8;font-weight:600;flex:1;" title="帶入 LLD 表頭">LLD</button>
-        <button class="hm-btn" id="btnULLD" style="background:#fef3e2;border-color:#f0b840;color:#8a5a00;font-weight:600;flex:1;" title="帶入 ULLD 表頭">ULLD</button>
+        <button class="hm-btn" id="btnLLD" style="background:#e8f4fd;border-color:#90c8f0;color:#1565a8;font-weight:600;flex:1;" title="Load LLD header">LLD</button>
+        <button class="hm-btn" id="btnULLD" style="background:#fef3e2;border-color:#f0b840;color:#8a5a00;font-weight:600;flex:1;" title="Load ULLD header">ULLD</button>
       </div>
       <div class="hm-status" id="headerPresetStatus" style="font-size:11px;min-height:16px;"></div>
       <div class="hm-buttons">
-        <button class="hm-btn" id="mergeBtn">合併並下載 CSV</button>
+        <button class="hm-btn" id="mergeBtn">Merge & Download CSV</button>
       </div>
-      <div class="hm-status" id="mergeStatus">取每個 CSV 檔名第 9-10 字元當 Wafer_ID，略過前 35 列。</div>
+      <div class="hm-status" id="mergeStatus">Uses chars 9-10 of each CSV filename as Wafer_ID; skips first 35 rows.</div>
     </div>
 
     <!-- Load CSV -->
     <div class="hm-group">
-      <h2>載入 CSV</h2>
+      <h2>Load CSV</h2>
       <input id="csvFile" type="file" accept=".csv,text/csv">
-      <div class="hm-status" id="fileStatus">請選擇合併後的 CSV。</div>
+      <div class="hm-status" id="fileStatus">Select a merged CSV file.</div>
 
       <div class="section-divider" style="border-top:1px solid #d8e4de; margin:10px 0 8px;"></div>
 
       <h2 style="margin-top:0;">Heatmap</h2>
-      <label for="hmTitle">標題</label>
+      <label for="hmTitle">Title</label>
       <input id="hmTitle" type="text" value="Wafer Heatmap">
-      <label for="column">測項</label>
+      <label for="column">Parameter</label>
       <select id="column"></select>
-      <label>預設範圍</label>
+      <label>Preset Range</label>
       <div id="presets"></div>
       <div class="hm-row">
         <div>
-          <label for="lo">下限</label>
+          <label for="lo">Low</label>
           <input id="lo" type="number" step="any" value="0">
         </div>
         <div>
-          <label for="hi">上限</label>
+          <label for="hi">High</label>
           <input id="hi" type="number" step="any" value="45">
         </div>
       </div>
       <div class="hm-buttons">
-        <button class="hm-btn primary" id="renderBtn" disabled>產生</button>
-        <button class="hm-btn" id="downloadBtn" disabled>下載 PNG</button>
+        <button class="hm-btn primary" id="renderBtn" disabled>Generate</button>
+        <button class="hm-btn" id="downloadBtn" disabled>Download PNG</button>
       </div>
     </div>
 
     <!-- Single Wafer Zoom -->
     <div class="hm-group">
-      <h2>單片放大</h2>
-      <label for="mode">模式</label>
+      <h2>Wafer Zoom</h2>
+      <label for="mode">Mode</label>
       <select id="mode">
-        <option value="detail">單片含數值</option>
-        <option value="overview">總覽</option>
+        <option value="detail">Single w/ Values</option>
+        <option value="overview">Overview</option>
       </select>
-      <label>片號</label>
+      <label>Wafer ID</label>
       <div class="wafer-list" id="waferList"></div>
       <div class="hm-buttons">
-        <button class="hm-btn" id="selectAllBtn" disabled>全選</button>
-        <button class="hm-btn" id="selectNoneBtn" disabled>全清</button>
-        <button class="hm-btn primary" id="renderBtn2" disabled>產生</button>
+        <button class="hm-btn" id="selectAllBtn" disabled>Select All</button>
+        <button class="hm-btn" id="selectNoneBtn" disabled>Clear All</button>
+        <button class="hm-btn primary" id="renderBtn2" disabled>Generate</button>
       </div>
     </div>
 
     <!-- Placeholder / info -->
     <div class="hm-group" style="background:#f5faf8;">
-      <h2>使用說明</h2>
+      <h2>Instructions</h2>
       <div style="font-size:12px; color:#4a6660; line-height:1.7;">
-        <p style="margin:0 0 8px;">① 選擇 ZIP 檔與表頭 CSV，合併後下載 merged.csv</p>
-        <p style="margin:0 0 8px;">② 或直接載入已合併的 CSV 檔</p>
-        <p style="margin:0 0 8px;">③ 選擇測項、設定上下限，按「產生」</p>
-        <p style="margin:0 0 8px;">④ 切換「單片含數值」模式可勾選片號放大</p>
-        <p style="margin:0;">⑤ 按「下載 PNG」儲存圖片</p>
+        <p style="margin:0 0 8px;">① Select ZIP and header CSV, then merge & download merged.csv</p>
+        <p style="margin:0 0 8px;">② Or load an already-merged CSV directly</p>
+        <p style="margin:0 0 8px;">③ Select Parameter, set Low/High, click "Generate"</p>
+        <p style="margin:0 0 8px;">④ Switch to "Single w/ Values" Mode to zoom individual Wafer IDs</p>
+        <p style="margin:0;">⑤ Click "Download PNG" to save the image</p>
       </div>
     </div>
 
@@ -1152,7 +1152,7 @@
 
   <!-- ── Bottom: Canvas Stage ── -->
   <div class="hm-stage">
-    <div id="hmEmpty" class="hm-empty">載入 CSV 後會在這裡產生 heatmap。</div>
+    <div id="hmEmpty" class="hm-empty">Heatmap will appear here after loading a CSV.</div>
     <div id="canvasShell" class="canvas-shell" hidden>
       <canvas id="canvas"></canvas>
     </div>
@@ -1181,7 +1181,7 @@ function checkFileSize(files, panel) {
   const limitOff = (panel === 'lld' && lldSizeLimitOff) || (panel === 'ulld' && ulldSizeLimitOff);
   if (limitOff) {
     const mb = (totalBytes / 1024 / 1024).toFixed(1);
-    return confirm(`檔案大小 ${mb} MB，超過 9MB 限制。\n確定仍要上傳嗎？`);
+    return confirm(`File size ${mb} MB exceeds the 9MB limit.\nProceed with upload?`);
   }
 
   showFileSizeAlert();
@@ -1261,7 +1261,7 @@ function toggleSizeLimit(panel) {
     const tog = document.getElementById('lldSizeToggle');
     const lbl = document.getElementById('lldSizeLimitLabel');
     tog.classList.toggle('off', lldSizeLimitOff);
-    lbl.textContent = lldSizeLimitOff ? '9MB限制 ✕' : '9MB限制';
+    lbl.textContent = lldSizeLimitOff ? '9MB Limit ✕' : '9MB Limit';
     lbl.style.color  = lldSizeLimitOff ? '#c0392b' : '#6c757d';
     // If limit just turned OFF, check pending LLD file inputs
     if (lldSizeLimitOff) {
@@ -1271,8 +1271,8 @@ function toggleSizeLimit(panel) {
           const total = Array.from(inp.files).reduce((s,f)=>s+f.size,0);
           if (total > FILE_SIZE_LIMIT_BYTES) {
             const mb = (total/1024/1024).toFixed(1);
-            if (!confirm(`已選檔案 ${mb} MB，超過 9MB 限制。
-確定仍要上傳嗎？`)) {
+            if (!confirm(`Selected file ${mb} MB exceeds the 9MB limit.
+Proceed with upload?`)) {
               inp.value = '';
             }
           }
@@ -1284,7 +1284,7 @@ function toggleSizeLimit(panel) {
     const tog = document.getElementById('ulldSizeToggle');
     const lbl = document.getElementById('ulldSizeLimitLabel');
     tog.classList.toggle('off', ulldSizeLimitOff);
-    lbl.textContent = ulldSizeLimitOff ? '9MB限制 ✕' : '9MB限制';
+    lbl.textContent = ulldSizeLimitOff ? '9MB Limit ✕' : '9MB Limit';
     lbl.style.color  = ulldSizeLimitOff ? '#c0392b' : '#6c757d';
     // If limit just turned OFF, check pending ULLD files already registered
     if (ulldSizeLimitOff && Object.keys(ulldLotFiles).length > 0) {
@@ -1296,8 +1296,8 @@ function toggleSizeLimit(panel) {
       }
       if (total > FILE_SIZE_LIMIT_BYTES) {
         const mb = (total/1024/1024).toFixed(1);
-        if (!confirm(`已選檔案共 ${mb} MB，超過 9MB 限制。
-確定仍要上傳嗎？`)) {
+        if (!confirm(`Total selected files ${mb} MB exceeds the 9MB limit.
+Proceed with upload?`)) {
           // User cancelled → clear registered files
           ulldLotFiles = {};
           document.getElementById('ulldMultiFile').value = '';
@@ -1385,7 +1385,7 @@ function loadSecondaryMappingFile(file) {
                 const dev = (row['Device'] || '').toString().trim();
                 if (lot && dev) { secondaryMappingData.set(lot, dev); count++; }
             });
-            const msg = `✅ 載入 ${count} 筆 Lot→Device 對照 (${file.name})`;
+            const msg = `✅ Loaded ${count} Lot→Device entries (${file.name})`;
             const el = document.getElementById('smbStatus');
             el.innerText = msg; el.style.color = '#1a5c38';
             log(`[SecMap] Loaded ${count} entries from ${file.name}`);
@@ -1393,7 +1393,7 @@ function loadSecondaryMappingFile(file) {
         } catch (err) {
             secondaryMappingData = new Map();
             const el = document.getElementById('smbStatus');
-            el.innerText = `⚠ 載入失敗：${err.message}`; el.style.color = '#a13b2f';
+            el.innerText = `⚠ Load failed: ${err.message}`; el.style.color = '#a13b2f';
             log(`[SecMap] Error: ${err.message}`);
         }
     };
@@ -1417,8 +1417,8 @@ function notifyCPSummaryGenerated(rows, fname) {
     const bar = document.getElementById('cpSumAutoBar');
     const msg = document.getElementById('cpSumAutoMsg');
     bar.style.display = 'block';
-    msg.textContent = `🟢 已產生「${fname}」(${rows.length} 筆)，可直接使用：`;
-    document.getElementById('cpSumImportStatus').innerText = '⏳ 尚未載入（可使用上方自動偵測）。';
+    msg.textContent = `🟢 Generated "${fname}" (${rows.length} records), ready to use:`;
+    document.getElementById('cpSumImportStatus').innerText = '⏳ Not loaded (auto-detect available above).';
     log(`[CPImport] In-session report available: ${fname} (${rows.length} rows)`);
 }
 
@@ -1431,7 +1431,7 @@ document.getElementById('btnUseCPSumAuto').addEventListener('click', function() 
         return out;
     });
     const status = document.getElementById('cpSumImportStatus');
-    status.innerText = `✅ 使用 in-session「${_inSessionCPSummaryName}」共 ${summaryData.length} 筆`;
+    status.innerText = `✅ Using in-session "${_inSessionCPSummaryName}" — ${summaryData.length} records`;
     status.style.color = '#1a5c38';
     log(`[CPImport] Using in-session report: ${summaryData.length} rows loaded into Plot`);
     checkChartReady(); checkCPReady(); checkFTPReady();
@@ -1449,7 +1449,7 @@ document.getElementById('cpSummaryImportFile').addEventListener('change', functi
             header: true, skipEmptyLines: true,
             complete: function(results) {
                 summaryData = results.data;
-                status.innerText = `✅ 載入 ${summaryData.length} 筆 (${file.name})`;
+                status.innerText = `✅ Loaded ${summaryData.length} records (${file.name})`;
                 status.style.color = '#1a5c38';
                 log(`[CPImport] CSV loaded: ${summaryData.length} rows from ${file.name}`);
                 checkChartReady(); checkCPReady(); checkFTPReady();
@@ -1465,14 +1465,14 @@ document.getElementById('cpSummaryImportFile').addEventListener('change', functi
                 const wb = XLSX.read(data, { type: 'array' });
                 const sheetName = wb.SheetNames.includes('Summary') ? 'Summary' : wb.SheetNames[0];
                 summaryData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
-                status.innerText = `✅ 載入 ${summaryData.length} 筆 (${file.name})`;
+                status.innerText = `✅ Loaded ${summaryData.length} records (${file.name})`;
                 status.style.color = '#1a5c38';
                 log(`[CPImport] XLSX loaded: ${summaryData.length} rows from ${file.name}`);
                 checkChartReady(); checkCPReady(); checkFTPReady();
                 updateDeviceDropdown();
                 document.getElementById('sumStatus').innerText = `✅ Loaded ${summaryData.length} records`;
             } catch (err) {
-                status.innerText = `⚠ 載入失敗：${err.message}`;
+                status.innerText = `⚠ Load failed: ${err.message}`;
                 status.style.color = '#a13b2f';
                 log(`[CPImport] Error: ${err.message}`);
             }
@@ -1504,7 +1504,7 @@ function parseMappingRaw(raw) {
     let currentDevice = "";
     return raw.map(row => {
         const dVal = (row['Device'] || row['Device Part No'] || "").toString().trim();
-        const pVal = (row['Part No'] || row['Part No (3碼)'] || "").toString().trim();
+        const pVal = (row['Part No'] || row['Part No (3-digit)'] || "").toString().trim();
         if (dVal !== "") currentDevice = dVal;
         return {
             Device: currentDevice,
@@ -2286,7 +2286,7 @@ let hmRecords = [];
 let hmHeaders = [];
 let fileBaseName = "wafer";
 
-// ── ZIP 路徑搜尋 ──────────────────────────────────────────────
+// ── ZIP Path Search ──────────────────────────────────────────────
 (function initZipSearch() {
   const folderNameEl = document.getElementById("zipFolderName");
   const lotInput     = document.getElementById("zipLotInput");
@@ -2342,7 +2342,7 @@ let fileBaseName = "wafer";
     });
   }
 
-  // ── 啟動時還原上次資料夾 ───────────────────────────────────
+  // ── Restore previous folder on startup ─────────────────────────
   async function restoreFolder() {
     try {
       const savedHandle = await idbGet(IDB_KEY_DIR);
@@ -2354,20 +2354,20 @@ let fileBaseName = "wafer";
       if (perm === "granted") {
         dirHandle = savedHandle;
         showFolder(savedName || dirHandle.name);
-        setStatus("✅ 已還原上次資料夾：<b>" + dirHandle.name + "</b>　輸入 Lot No. 按 Search 即可。", "#126c5a");
+        setStatus("✅ Restored previous folder: <b>" + dirHandle.name + "</b> — Enter Lot No. and click Search.", "#126c5a");
       } else {
         // Need to re-prompt once
-        showFolder((savedName || "上次資料夾") + "（需重新授權）");
-        setStatus("🔒 上次資料夾需重新授權，請按「📁 選擇資料夾」一次。", "#8a5a00");
+        showFolder((savedName || "Previous folder") + " (re-authorization required)");
+        setStatus("🔒 Previous folder requires re-authorization. Please click '📁 Select Folder' once.", "#8a5a00");
       }
     } catch(e) { /* silent */ }
   }
   restoreFolder();
 
-  // ① 選擇資料夾
+  // ① Select folder
   pickBtn.addEventListener("click", async () => {
     if (!window.showDirectoryPicker) {
-      setStatus("⚠️ 此瀏覽器不支援（請用 Chrome / Edge）。", "#a13b2f");
+      setStatus("⚠️ Browser not supported (please use Chrome or Edge).", "#a13b2f");
       return;
     }
     try {
@@ -2377,33 +2377,33 @@ let fileBaseName = "wafer";
       // Persist handle + name to IndexedDB
       await idbSet(IDB_KEY_DIR,  handle);
       await idbSet(IDB_KEY_NAME, handle.name);
-      setStatus("✅ 已授權並記住資料夾：<b>" + handle.name + "</b>　下次開啟自動還原。", "#126c5a");
+      setStatus("✅ Folder authorized and saved: <b>" + handle.name + "</b> — Will restore automatically next time.", "#126c5a");
     } catch(e) {
       if (e.name !== "AbortError")
-        setStatus("❌ 無法開啟資料夾：" + e.message, "#a13b2f");
+        setStatus("❌ Cannot open folder: " + e.message, "#a13b2f");
     }
   });
 
   // ② Search
   searchBtn.addEventListener("click", async () => {
     const lot = lotInput.value.trim();
-    if (!lot)       { setStatus("⚠️ 請輸入 Lot No.", "#a13b2f"); return; }
-    if (!dirHandle) { setStatus("⚠️ 請先按「📁 選擇資料夾」授權目錄。", "#a13b2f"); return; }
+    if (!lot)       { setStatus("⚠️ Please enter a Lot No.", "#a13b2f"); return; }
+    if (!dirHandle) { setStatus("⚠️ Please click '📁 Select Folder' to authorize a directory first.", "#a13b2f"); return; }
 
     const zipName = lot + ".zip";
-    setStatus("🔎 搜尋中：" + zipName + " ...", "#1565a8");
+    setStatus("🔎 Searching: " + zipName + " ...", "#1565a8");
 
     try {
       // Re-request permission if needed (handles browser restart scenario)
       const perm = await dirHandle.requestPermission({ mode: "read" });
-      if (perm !== "granted") { setStatus("❌ 未獲得資料夾存取權限。", "#a13b2f"); return; }
+      if (perm !== "granted") { setStatus("❌ Folder access permission denied.", "#a13b2f"); return; }
 
       // Recursive deep search for zipName in all subdirectories
       const fileHandle = await deepFindFile(dirHandle, zipName, (path) => {
-        setStatus("🔎 搜尋中：" + path + " ...", "#1565a8");
+        setStatus("🔎 Searching: " + path + " ...", "#1565a8");
       });
       if (!fileHandle) {
-        setStatus("❌ 找不到 <b>" + zipName + "</b>（含所有子資料夾），請確認資料夾或 Lot No. 是否正確。", "#a13b2f");
+        setStatus("❌ Not found: <b>" + zipName + "</b> (including all subfolders). Please check the folder or Lot No.", "#a13b2f");
         return;
       }
       const file = await fileHandle.handle.getFile();
@@ -2413,18 +2413,18 @@ let fileBaseName = "wafer";
       zipFileInput.files = dt.files;
       zipFileInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-      setStatus("✅ 已找到：<b>" + fileHandle.path + "</b>（" + (file.size / 1024).toFixed(0) + " KB）— 可直接按「合併並下載 CSV」。", "#126c5a");
+      setStatus("✅ Found: <b>" + fileHandle.path + "</b> (" + (file.size / 1024).toFixed(0) + " KB) — Ready to click 'Merge & Download CSV'.", "#126c5a");
     } catch(e) {
-      setStatus("❌ 讀取失敗：" + e.message, "#a13b2f");
+      setStatus("❌ Read failed: " + e.message, "#a13b2f");
     }
   });
 
-  // ③ Enter 鍵觸發 Search
+  // ③ Enter key triggers Search
   lotInput.addEventListener("keydown", e => { if (e.key === "Enter") searchBtn.click(); });
 })();
 // ─────────────────────────────────────────────────────────────
 
-// ── 遞迴搜尋 ZIP 檔（所有子資料夾）─────────────────────────
+// ── Recursive ZIP search (all subfolders) ──────────────────────
 /**
  * Recursively search for a file by name in a FileSystemDirectoryHandle.
  * Returns { handle: FileSystemFileHandle, path: string } or null.
@@ -2458,7 +2458,7 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
 
     const label = document.createElement("div");
     label.style.cssText = "font-size:11px;font-weight:600;color:#3a5f58;margin-bottom:4px;";
-    label.innerHTML = "📋 批次 Lot 清單 → 一鍵產生 Heatmap ZIP";
+    label.innerHTML = "📋 Batch Lot List → Generate Heatmap ZIP";
     zipSearchBox.appendChild(label);
 
     // Row: file input + column selector + download button
@@ -2470,7 +2470,7 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
     fileInput.accept = ".txt,.csv";
     fileInput.id = "batchLotFile";
     fileInput.style.cssText = "font-size:11px;flex:1;min-width:0;";
-    fileInput.title = "選擇含 Lot No. 清單的 .txt 或 .csv (每行一個 Lot No.)";
+    fileInput.title = "Select a .txt or .csv file with one Lot No. per line";
 
     const colSelect = document.createElement("select");
     colSelect.id = "batchColSelect";
@@ -2485,7 +2485,7 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
     runBtn.className = "hm-btn";
     runBtn.id = "batchRunBtn";
     runBtn.style.cssText = "padding:3px 10px;font-size:11px;white-space:nowrap;flex-shrink:0;background:#e6f4f1;border-color:#7bbdb5;color:#1a5c50;font-weight:600;";
-    runBtn.textContent = "⚡ 批次產生 ZIP";
+    runBtn.textContent = "⚡ Batch Generate ZIP";
 
     row1.appendChild(fileInput);
     row1.appendChild(colSelect);
@@ -2504,7 +2504,7 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
 
     runBtn.addEventListener("click", async () => {
       const lotFile = fileInput.files && fileInput.files[0];
-      if (!lotFile) { setBatchStatus("⚠️ 請先選擇 Lot No. 清單檔。", "#a13b2f"); return; }
+      if (!lotFile) { setBatchStatus("⚠️ Please select a Lot No. list file first.", "#a13b2f"); return; }
 
       // Get dirHandle from outer scope via IDB (reuse the same key)
       const IDB_NAME = "wat_cp_suite", IDB_STORE = "handles", IDB_KEY_DIR = "zip_dir_handle";
@@ -2524,15 +2524,15 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
         });
       } catch(e) {}
 
-      if (!batchDirHandle) { setBatchStatus("⚠️ 請先在「ZIP 路徑搜尋」授權資料夾後再批次執行。", "#a13b2f"); return; }
+      if (!batchDirHandle) { setBatchStatus("⚠️ Please authorize a folder in 'ZIP Path Search' before running batch.", "#a13b2f"); return; }
 
       const perm = await batchDirHandle.requestPermission({ mode: "read" });
-      if (perm !== "granted") { setBatchStatus("❌ 未獲得資料夾存取權限。", "#a13b2f"); return; }
+      if (perm !== "granted") { setBatchStatus("❌ Folder access permission denied.", "#a13b2f"); return; }
 
       // Parse lot list
       const raw = await lotFile.text();
       const lots = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith("#"));
-      if (!lots.length) { setBatchStatus("⚠️ 清單是空的。", "#a13b2f"); return; }
+      if (!lots.length) { setBatchStatus("⚠️ Lot list is empty.", "#a13b2f"); return; }
 
       const selectedCol = colSelect.value;
       const presets = window._hmPresetsByColumn || {
@@ -2549,17 +2549,17 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
 
       for (let i = 0; i < lots.length; i++) {
         const lot = lots[i];
-        // 依每個 Lot No. 自動判斷表頭
+        // Auto-detect header per Lot No.
         const { line: headerLine, label: headerLabel } = autoHeaderLine(lot);
-        setBatchStatus(`🔎 (${i+1}/${total}) 搜尋 ${lot}.zip [${headerLabel}] ...`, "#1565a8");
+        setBatchStatus(`🔎 (${i+1}/${total}) Searching ${lot}.zip [${headerLabel}] ...`, "#1565a8");
         try {
           const found = await deepFindFile(batchDirHandle, lot + ".zip", null);
           if (!found) {
             results.push({ lotNo: lot, pngBlob: null, status: "NOT_FOUND" });
-            setBatchStatus(`⚠️ (${i+1}/${total}) 找不到 ${lot}.zip，略過。`, "#a13b2f");
+            setBatchStatus(`⚠️ (${i+1}/${total}) Not found: ${lot}.zip, skipping.`, "#a13b2f");
             continue;
           }
-          setBatchStatus(`⚙️ (${i+1}/${total}) 合併 ${lot}.zip ...`, "#1565a8");
+          setBatchStatus(`⚙️ (${i+1}/${total}) Merging ${lot}.zip ...`, "#1565a8");
           const zipFile = await found.handle.getFile();
           const entries = await readZipEntries(await zipFile.arrayBuffer());
           const csvEntries = entries.filter(e => e.name.toLowerCase().endsWith(".csv") && !e.isDirectory)
@@ -2587,20 +2587,20 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
           const mergedCsv = out.join("\r\n") + "\r\n";
 
           // Parse & render
-          setBatchStatus(`🎨 (${i+1}/${total}) 產生 ${lot} heatmap ...`, "#1565a8");
+          setBatchStatus(`🎨 (${i+1}/${total}) Rendering ${lot} heatmap ...`, "#1565a8");
           let parsed, records;
           try {
             parsed = parseCsv(mergedCsv);
           } catch(parseErr) {
             results.push({ lotNo: lot, pngBlob: null, status: "PARSE_FAIL:parseCsv:" + parseErr.message });
-            setBatchStatus(`❌ (${i+1}/${total}) ${lot} parseCsv 失敗：${parseErr.message}`, "#a13b2f");
+            setBatchStatus(`❌ (${i+1}/${total}) ${lot} parseCsv failed: ${parseErr.message}`, "#a13b2f");
             continue;
           }
           try {
             records = loadRecords(parsed);
           } catch(loadErr) {
             results.push({ lotNo: lot, pngBlob: null, status: "PARSE_FAIL:loadRecords:" + loadErr.message });
-            setBatchStatus(`❌ (${i+1}/${total}) ${lot} loadRecords 失敗：${loadErr.message}｜headers=${JSON.stringify(parsed.headers)}`, "#a13b2f");
+            setBatchStatus(`❌ (${i+1}/${total}) ${lot} loadRecords failed: ${loadErr.message} | headers=${JSON.stringify(parsed.headers)}`, "#a13b2f");
             continue;
           }
           if (!records.length) {
@@ -2623,12 +2623,12 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
           }
         } catch(e) {
           results.push({ lotNo: lot, pngBlob: null, csvContent: null, status: "ERROR:" + e.message });
-          setBatchStatus(`❌ (${i+1}/${total}) ${lot} 錯誤：${e.message}`, "#a13b2f");
+          setBatchStatus(`❌ (${i+1}/${total}) ${lot} error: ${e.message}`, "#a13b2f");
         }
       }
 
       // Build zip output
-      setBatchStatus(`📦 打包 ${selectedCol}_heatmap.zip ...`, "#1565a8");
+      setBatchStatus(`📦 Packaging ${selectedCol}_heatmap.zip ...`, "#1565a8");
       try {
         const okResults = results.filter(r => r.status === "OK");
         const zipEntries = [];
@@ -2646,9 +2646,9 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
         a.href = url; a.download = selectedCol + "_heatmap.zip"; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 2000);
         const failDetails = results.filter(r => r.status !== "OK").map(r => `${r.lotNo}:${r.status}`).join(" | ");
-        setBatchStatus(`✅ 完成！成功 ${ok} 個，失敗/找不到 ${fail} 個。已下載 <b>${selectedCol}_heatmap.zip</b>${fail ? '<br><span style="color:#a13b2f;font-size:10px;">失敗：' + failDetails + '</span>' : ''}`, "#126c5a");
+        setBatchStatus(`✅ Done! Success: ${ok}, failed/not found: ${fail}. Downloaded <b>${selectedCol}_heatmap.zip</b>${fail ? '<br><span style="color:#a13b2f;font-size:10px;">Failed: ' + failDetails + '</span>' : ''}`, "#126c5a");
       } catch(e) {
-        setBatchStatus("❌ 打包 ZIP 失敗：" + e.message, "#a13b2f");
+        setBatchStatus("❌ ZIP packaging failed: " + e.message, "#a13b2f");
       }
       runBtn.disabled = false;
     });
@@ -2769,28 +2769,28 @@ hmEls.renderBtn2.addEventListener("click", renderIfReady);
 
 async function mergeZipCsv() {
     const zipFile = hmEls.zipFile.files && hmEls.zipFile.files[0];
-    if (!zipFile) return setMergeStatus("請先選擇 ZIP 檔。", true);
+    if (!zipFile) return setMergeStatus("Please select a ZIP file first.", true);
     try {
         hmEls.mergeBtn.disabled = true;
-        setMergeStatus("讀取 ZIP 中...", false);
-        // Header 優先序：① user 手動選的 headerFile → ② 依 ZIP 檔名自動判斷
+        setMergeStatus("Reading ZIP...", false);
+        // Header priority: ① user-selected headerFile → ② auto-detect from ZIP filename
         const headerFile = hmEls.headerFile.files && hmEls.headerFile.files[0];
         let headerLine, headerSource;
         if (headerFile) {
             headerLine = firstLine(await headerFile.text()).replace(/^\uFEFF/, "");
-            if (!headerLine.trim()) throw new Error("表頭 CSV 第一列是空的。");
-            headerSource = "（手動選擇）";
+            if (!headerLine.trim()) throw new Error("Header CSV first row is empty.");
+            headerSource = "(manual)";
         } else {
             const lotNo = zipFile.name.replace(/\.zip$/i, "");
             const auto = autoHeaderLine(lotNo);
             headerLine = auto.line;
-            headerSource = "（自動 " + auto.label + "）";
+            headerSource = "(auto " + auto.label + "）";
         }
-        setMergeStatus("表頭 " + headerSource + "，讀取 ZIP 中...", false);
+        setMergeStatus("Header " + headerSource + "，Reading ZIP...", false);
         const entries = await readZipEntries(await zipFile.arrayBuffer());
         const csvEntries = entries.filter(e => e.name.toLowerCase().endsWith(".csv") && !e.isDirectory)
                                   .sort((a, b) => baseName(a.name).localeCompare(baseName(b.name)));
-        if (!csvEntries.length) throw new Error("ZIP 內找不到 CSV 檔。");
+        if (!csvEntries.length) throw new Error("No CSV files found inside ZIP.");
         const out = [headerLine];
         let totalRows = 0;
         for (const entry of csvEntries) {
@@ -2806,12 +2806,12 @@ async function mergeZipCsv() {
                 fileRows++;
             }
             totalRows += fileRows;
-            setMergeStatus(`處理 ${name} -> Wafer=${waferId}，寫出 ${fileRows} 列。`, false);
+            setMergeStatus(`Processing ${name} → Wafer=${waferId}, wrote ${fileRows} rows.`, false);
         }
         const zipBase = zipFile.name.replace(/\.[^.]+$/, "");
         const mergedCsvContent = out.join("\r\n") + "\r\n";
         downloadText(`${zipBase}_merged.csv`, mergedCsvContent, "text/csv;charset=utf-8");
-        // Auto-inject into 載入 CSV
+        // Auto-inject into Load CSV
         (function() {
           try {
             const mergedFile = new File([mergedCsvContent], `${zipBase}_merged.csv`, { type: 'text/csv' });
@@ -2820,12 +2820,12 @@ async function mergeZipCsv() {
             hmEls.csvFile.files = dt.files;
             // Trigger load
             hmEls.csvFile.dispatchEvent(new Event('change'));
-            setMergeStatus(`完成：${csvEntries.length} 個 CSV，共 ${totalRows.toLocaleString()} 列資料。已自動載入 ${zipBase}_merged.csv。`, false);
+            setMergeStatus(`Done: ${csvEntries.length} CSV files, total ${totalRows.toLocaleString()} data rows. Auto-loaded ${zipBase}_merged.csv。`, false);
           } catch(e) {
             // DataTransfer may not be supported in all browsers, silent fail
           }
         })();
-        setMergeStatus(`完成：${csvEntries.length} 個 CSV，共 ${totalRows.toLocaleString()} 列資料。`, false);
+        setMergeStatus(`Done: ${csvEntries.length} CSV files, total ${totalRows.toLocaleString()} data rows.`, false);
     } catch (err) {
         setMergeStatus(`Error: ${err.message}`, true);
     } finally {
@@ -2854,7 +2854,7 @@ async function readZipEntries(buffer) {
     const entries = [];
     let offset = centralOffset;
     for (let i = 0; i < totalEntries; i++) {
-        if (view.getUint32(offset, true) !== 0x02014b50) throw new Error("ZIP central directory 格式不正確。");
+        if (view.getUint32(offset, true) !== 0x02014b50) throw new Error("Invalid ZIP central directory format.");
         const flags = view.getUint16(offset + 8, true);
         const method = view.getUint16(offset + 10, true);
         const compressedSize = view.getUint32(offset + 20, true);
@@ -2881,19 +2881,19 @@ function findEocd(bytes) {
     for (let i = bytes.length - 22; i >= min; i--) {
         if (bytes[i] === 0x50 && bytes[i+1] === 0x4b && bytes[i+2] === 0x05 && bytes[i+3] === 0x06) return i;
     }
-    throw new Error("找不到 ZIP 結尾目錄。");
+    throw new Error("ZIP end-of-central-directory not found.");
 }
 
 async function extractZipData(buffer, localOffset, compressedSize, method, uncompressedSize) {
     const view = new DataView(buffer);
-    if (view.getUint32(localOffset, true) !== 0x04034b50) throw new Error("ZIP local header 格式不正確。");
+    if (view.getUint32(localOffset, true) !== 0x04034b50) throw new Error("Invalid ZIP local header format.");
     const nameLen = view.getUint16(localOffset + 26, true);
     const extraLen = view.getUint16(localOffset + 28, true);
     const dataOffset = localOffset + 30 + nameLen + extraLen;
     const compressed = new Uint8Array(buffer, dataOffset, compressedSize);
     if (method === 0) return new Uint8Array(compressed);
-    if (method !== 8) throw new Error(`不支援的 ZIP 壓縮方法：${method}`);
-    if (!("DecompressionStream" in window)) throw new Error("此瀏覽器不支援 ZIP deflate 解壓，請使用新版 Chrome 或 Edge。");
+    if (method !== 8) throw new Error(`Unsupported ZIP compression method: ${method}`);
+    if (!("DecompressionStream" in window)) throw new Error("This browser does not support ZIP deflate decompression. Please use a recent Chrome or Edge.");
     const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
     const result = new Uint8Array(await new Response(stream).arrayBuffer());
     if (uncompressedSize && result.length !== uncompressedSize) console.warn("ZIP size mismatch", result.length, uncompressedSize);
@@ -3039,7 +3039,7 @@ function setAllWafers(checked) { for (const input of hmEls.waferList.querySelect
 
 function readRange() {
     const lo = Number(hmEls.lo.value), hi = Number(hmEls.hi.value);
-    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) throw new Error("上下限必須是不同的數字。");
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) throw new Error("Low and High must be different numbers.");
     return lo < hi ? [lo, hi] : [hi, lo];
 }
 
@@ -3114,7 +3114,7 @@ function renderOverview(allRecords, title, col, lo, hi) {
 }
 
 function renderDetail(allRecords, col, waferIds, lo, hi) {
-    if (!waferIds.length) throw new Error("請至少勾選一個片號。");
+    if (!waferIds.length) throw new Error("Please select at least one Wafer ID.");
     const ctx = hmEls.canvas.getContext("2d");
     const cell = 36, margin = 6, label = 20, outer = 10, gap = 14, cols = 2;
     const ext = extents(allRecords);
@@ -3216,7 +3216,7 @@ function injectHeaderFile(file, label) {
   input.files = dt.files;
   // Show label
   const status = document.getElementById('headerPresetStatus');
-  status.textContent = '✅ 已帶入 ' + label + ' 表頭';
+  status.textContent = '✅ Loaded ' + label + ' header';
   status.style.color = '#126c5a';
 }
 
@@ -3228,9 +3228,9 @@ document.getElementById('btnULLD').addEventListener('click', function() {
   injectHeaderFile(b64ToFile(ULLD_B64, 'ULLD_header.csv'), 'ULLD');
 });
 
-// ── 依 Lot No. 自動判斷表頭 ───────────────────────────────────
+// ── Auto-detect header by Lot No. ─────────────────────────────
 // EK / RK / NK → LLD    |    RP → ULLD
-// 回傳 { line: string, label: 'LLD'|'ULLD' }
+// Returns { line: string, label: 'LLD'|'ULLD' }
 function autoHeaderLine(lotNo) {
   // Use TextDecoder to correctly handle UTF-8 BOM (\xef\xbb\xbf) that atob() preserves as raw bytes
   function b64ToHeaderLine(b64) {
@@ -3247,16 +3247,16 @@ function autoHeaderLine(lotNo) {
   return { line: b64ToHeaderLine(LLD_B64), label: 'LLD' };
 }
 
-// ZIP 選擇時：若 user 尚未手動選 header，根據 ZIP 檔名自動 inject
+// Auto-inject header when ZIP is selected (if no manual header chosen)
 document.getElementById('zipFile').addEventListener('change', function() {
   const file = this.files && this.files[0];
   if (!file) return;
   const headerInput = document.getElementById('headerFile');
   const hasManual = headerInput.files && headerInput.files.length > 0;
-  if (hasManual) return; // 已手動選過，不覆蓋
+  if (hasManual) return; // Manual selection present, skip auto-inject
   const lotNo = file.name.replace(/\.zip$/i, '');
   const { label } = autoHeaderLine(lotNo);
-  injectHeaderFile(b64ToFile(label === 'ULLD' ? ULLD_B64 : LLD_B64, label + '_header.csv'), label + '（自動）');
+  injectHeaderFile(b64ToFile(label === 'ULLD' ? ULLD_B64 : LLD_B64, label + '_header.csv'), label + '(auto)');
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -3414,7 +3414,7 @@ async function ulldParseRaw(file) {
 // ── Process button ────────────────────────────────────────────
 document.getElementById('ulldBtnProcess').addEventListener('click', async function() {
   const btn = this;
-  btn.disabled = true; btn.textContent = '⏳ 處理中...';
+  btn.disabled = true; btn.textContent = '⏳ Processing...';
   const prog = document.getElementById('ulldImportProgress');
   const bar  = document.getElementById('ulldImportBar');
   const msg  = document.getElementById('ulldImportMsg');
@@ -3447,7 +3447,7 @@ document.getElementById('ulldBtnProcess').addEventListener('click', async functi
   }
 
   prog.style.display = 'none';
-  btn.textContent = '⚙ 處理並載入圖表資料';
+  btn.textContent = '⚙ Process & Load Chart Data';
   btn.disabled = false;
   ulldLoadDataIntoUI();
   document.getElementById('ulldBtnDownload').disabled = false;
@@ -3508,7 +3508,7 @@ document.getElementById('ulldBtnGenerate').addEventListener('click', function() 
   const xMode  = document.getElementById('ulldXAxisSelect').value;  // 'Lot_No' or 'RUN_ON'
   const yLabel = document.getElementById('ulldYAxisSelect').options[document.getElementById('ulldYAxisSelect').selectedIndex].text;
 
-  if (!selectedParts.length) { alert('請至少選取一個 Part No'); return; }
+  if (!selectedParts.length) { alert('Please select at least one Part No'); return; }
   ulldLog(`[ULLD] Generating: Y=${yCol}, X=${xMode}, Parts=[${selectedParts.join(',')}]`);
 
   const legendEl = document.getElementById('ulldLegendChips');
@@ -3558,7 +3558,7 @@ document.getElementById('ulldBtnGenerate').addEventListener('click', function() 
     ulldLog(`  → ${part}: ${points.length} points`);
   });
 
-  if (!datasets.length) { alert('選取的 Part No 沒有有效資料。'); return; }
+  if (!datasets.length) { alert('No valid data for the selected Part No.'); return; }
 
   // Add 100% reference line for Yield
   if (isYield && isTimeX && globalMin !== Infinity) {
@@ -3686,7 +3686,7 @@ document.getElementById('ulldDbFile').addEventListener('change', function(e) {
       }
 
       document.getElementById('ulldDbStatus').textContent = `✅ Loaded ${count} lots from "${sheetName}" (${file.name})`;
-      document.getElementById('ulldDbSummaryText').textContent = `CP Yield 已載入 ${count} lots`;
+      document.getElementById('ulldDbSummaryText').textContent = `CP Yield loaded: ${count} lots`;
       document.getElementById('ulldDbSummary').style.display = 'block';
       document.getElementById('ulldBtnClearDb').style.display = 'block';
       ulldLog(`[ULLD-DB] Loaded ${count} CP Yield entries from ${file.name}`);
