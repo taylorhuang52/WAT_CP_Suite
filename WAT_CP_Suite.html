@@ -1073,9 +1073,9 @@
         <div id="zipSearchStatus" style="font-size:11px;color:#5a706a;margin-top:5px;min-height:14px;"></div>
       </div>
 
-      <label for="zipFile">ZIP 檔</label>
+      <label for="zipFile">單批 Lot ZIP 檔</label>
       <input id="zipFile" type="file" accept=".zip,application/zip">
-      <label for="headerFile">表頭 CSV</label>
+      <label for="headerFile" title="EK/RK/NK → LLD；RP → ULLD（可不選，自動依 ZIP 檔名判斷）">表頭 CSV <span style="font-weight:400;color:#888;font-size:10px;">（選填，自動依 Lot No. 判斷）</span></label>
       <input id="headerFile" type="file" accept=".csv,text/csv">
       <div style="display:flex;gap:6px;margin-top:6px;">
         <button class="hm-btn" id="btnLLD" style="background:#e8f4fd;border-color:#90c8f0;color:#1565a8;font-weight:600;flex:1;" title="帶入 LLD 表頭">LLD</button>
@@ -2398,20 +2398,24 @@ let fileBaseName = "wafer";
       const perm = await dirHandle.requestPermission({ mode: "read" });
       if (perm !== "granted") { setStatus("❌ 未獲得資料夾存取權限。", "#a13b2f"); return; }
 
-      const fileHandle = await dirHandle.getFileHandle(zipName, { create: false });
-      const file = await fileHandle.getFile();
+      // Recursive deep search for zipName in all subdirectories
+      const fileHandle = await deepFindFile(dirHandle, zipName, (path) => {
+        setStatus("🔎 搜尋中：" + path + " ...", "#1565a8");
+      });
+      if (!fileHandle) {
+        setStatus("❌ 找不到 <b>" + zipName + "</b>（含所有子資料夾），請確認資料夾或 Lot No. 是否正確。", "#a13b2f");
+        return;
+      }
+      const file = await fileHandle.handle.getFile();
 
       const dt = new DataTransfer();
       dt.items.add(file);
       zipFileInput.files = dt.files;
       zipFileInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-      setStatus("✅ 已找到：<b>" + zipName + "</b>（" + (file.size / 1024).toFixed(0) + " KB）— 可直接按「合併並下載 CSV」。", "#126c5a");
+      setStatus("✅ 已找到：<b>" + fileHandle.path + "</b>（" + (file.size / 1024).toFixed(0) + " KB）— 可直接按「合併並下載 CSV」。", "#126c5a");
     } catch(e) {
-      if (e.name === "NotFoundError")
-        setStatus("❌ 找不到 <b>" + zipName + "</b>，請確認資料夾或 Lot No. 是否正確。", "#a13b2f");
-      else
-        setStatus("❌ 讀取失敗：" + e.message, "#a13b2f");
+      setStatus("❌ 讀取失敗：" + e.message, "#a13b2f");
     }
   });
 
@@ -2419,6 +2423,336 @@ let fileBaseName = "wafer";
   lotInput.addEventListener("keydown", e => { if (e.key === "Enter") searchBtn.click(); });
 })();
 // ─────────────────────────────────────────────────────────────
+
+// ── 遞迴搜尋 ZIP 檔（所有子資料夾）─────────────────────────
+/**
+ * Recursively search for a file by name in a FileSystemDirectoryHandle.
+ * Returns { handle: FileSystemFileHandle, path: string } or null.
+ * onProgress(currentPath) is called as each directory is scanned.
+ */
+async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
+  const base = _basePath || dirHandle.name;
+  if (onProgress) onProgress(base + "/...");
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (handle.kind === "file" && name === fileName) {
+      return { handle, path: base + "/" + name };
+    }
+    if (handle.kind === "directory") {
+      const found = await deepFindFile(handle, fileName, onProgress, base + "/" + name);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// ── Batch Lot List Import ─────────────────────────────────────
+(function initBatchImport() {
+  // We inject UI into the zipSearchBox after page load
+  function createBatchUI() {
+    const zipSearchBox = document.getElementById("zipSearchBox");
+    if (!zipSearchBox) return;
+
+    const divider = document.createElement("div");
+    divider.style.cssText = "border-top:1px dashed #a8c8c0;margin:8px 0 6px;";
+    zipSearchBox.appendChild(divider);
+
+    const label = document.createElement("div");
+    label.style.cssText = "font-size:11px;font-weight:600;color:#3a5f58;margin-bottom:4px;";
+    label.innerHTML = "📋 批次 Lot 清單 → 一鍵產生 Heatmap ZIP";
+    zipSearchBox.appendChild(label);
+
+    // Row: file input + column selector + download button
+    const row1 = document.createElement("div");
+    row1.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;";
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".txt,.csv";
+    fileInput.id = "batchLotFile";
+    fileInput.style.cssText = "font-size:11px;flex:1;min-width:0;";
+    fileInput.title = "選擇含 Lot No. 清單的 .txt 或 .csv (每行一個 Lot No.)";
+
+    const colSelect = document.createElement("select");
+    colSelect.id = "batchColSelect";
+    colSelect.style.cssText = "font-size:11px;padding:2px 4px;border:1px solid #b0ccc8;border-radius:4px;background:#fff;";
+    ["IR0","VF0","VF1","VZ0","IDSS2","IR2_1","IGSS2F","BVDSS3"].forEach(c => {
+      const o = document.createElement("option");
+      o.value = c; o.textContent = c;
+      colSelect.appendChild(o);
+    });
+
+    const runBtn = document.createElement("button");
+    runBtn.className = "hm-btn";
+    runBtn.id = "batchRunBtn";
+    runBtn.style.cssText = "padding:3px 10px;font-size:11px;white-space:nowrap;flex-shrink:0;background:#e6f4f1;border-color:#7bbdb5;color:#1a5c50;font-weight:600;";
+    runBtn.textContent = "⚡ 批次產生 ZIP";
+
+    row1.appendChild(fileInput);
+    row1.appendChild(colSelect);
+    row1.appendChild(runBtn);
+    zipSearchBox.appendChild(row1);
+
+    const statusDiv = document.createElement("div");
+    statusDiv.id = "batchStatus";
+    statusDiv.style.cssText = "font-size:11px;color:#5a706a;min-height:14px;margin-top:3px;line-height:1.5;";
+    zipSearchBox.appendChild(statusDiv);
+
+    function setBatchStatus(msg, color) {
+      statusDiv.style.color = color || "#5a706a";
+      statusDiv.innerHTML = msg;
+    }
+
+    runBtn.addEventListener("click", async () => {
+      const lotFile = fileInput.files && fileInput.files[0];
+      if (!lotFile) { setBatchStatus("⚠️ 請先選擇 Lot No. 清單檔。", "#a13b2f"); return; }
+
+      // Get dirHandle from outer scope via IDB (reuse the same key)
+      const IDB_NAME = "wat_cp_suite", IDB_STORE = "handles", IDB_KEY_DIR = "zip_dir_handle";
+      let batchDirHandle = null;
+      try {
+        const db = await new Promise((res, rej) => {
+          const req = indexedDB.open(IDB_NAME, 1);
+          req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+          req.onsuccess = e => res(e.target.result);
+          req.onerror = e => rej(e.target.error);
+        });
+        batchDirHandle = await new Promise((res, rej) => {
+          const tx = db.transaction(IDB_STORE, "readonly");
+          const req = tx.objectStore(IDB_STORE).get(IDB_KEY_DIR);
+          req.onsuccess = e => res(e.target.result);
+          req.onerror = e => rej(e.target.error);
+        });
+      } catch(e) {}
+
+      if (!batchDirHandle) { setBatchStatus("⚠️ 請先在「ZIP 路徑搜尋」授權資料夾後再批次執行。", "#a13b2f"); return; }
+
+      const perm = await batchDirHandle.requestPermission({ mode: "read" });
+      if (perm !== "granted") { setBatchStatus("❌ 未獲得資料夾存取權限。", "#a13b2f"); return; }
+
+      // Parse lot list
+      const raw = await lotFile.text();
+      const lots = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith("#"));
+      if (!lots.length) { setBatchStatus("⚠️ 清單是空的。", "#a13b2f"); return; }
+
+      const selectedCol = colSelect.value;
+      const presets = window._hmPresetsByColumn || {
+        IR0: [0, 45], VF0: [205, 285], VF1: [250, 330], VZ0: [19.5, 22.5],
+        IDSS2: [-90, 90], IR2_1: [-90, 90], IGSS2F: [-30, 30], BVDSS3: [19.5, 22.5]
+      };
+      const colPreset = presets[selectedCol] ? (Array.isArray(presets[selectedCol][0]) ? presets[selectedCol][0].slice(1) : presets[selectedCol]) : [0, 100];
+      const [lo, hi] = colPreset;
+
+      runBtn.disabled = true;
+      const results = []; // { lotNo, pngBlob, status }
+      const total = lots.length;
+
+
+      for (let i = 0; i < lots.length; i++) {
+        const lot = lots[i];
+        // 依每個 Lot No. 自動判斷表頭
+        const { line: headerLine, label: headerLabel } = autoHeaderLine(lot);
+        setBatchStatus(`🔎 (${i+1}/${total}) 搜尋 ${lot}.zip [${headerLabel}] ...`, "#1565a8");
+        try {
+          const found = await deepFindFile(batchDirHandle, lot + ".zip", null);
+          if (!found) {
+            results.push({ lotNo: lot, pngBlob: null, status: "NOT_FOUND" });
+            setBatchStatus(`⚠️ (${i+1}/${total}) 找不到 ${lot}.zip，略過。`, "#a13b2f");
+            continue;
+          }
+          setBatchStatus(`⚙️ (${i+1}/${total}) 合併 ${lot}.zip ...`, "#1565a8");
+          const zipFile = await found.handle.getFile();
+          const entries = await readZipEntries(await zipFile.arrayBuffer());
+          const csvEntries = entries.filter(e => e.name.toLowerCase().endsWith(".csv") && !e.isDirectory)
+                                    .sort((a, b) => {
+                                      const n1 = a.name.replace(/\\/g,"/").split("/").pop();
+                                      const n2 = b.name.replace(/\\/g,"/").split("/").pop();
+                                      return n1.localeCompare(n2);
+                                    });
+          if (!csvEntries.length) {
+            results.push({ lotNo: lot, pngBlob: null, status: "NO_CSV" });
+            continue;
+          }
+          const out = [headerLine];
+          for (const entry of csvEntries) {
+            const name = entry.name.replace(/\\/g,"/").split("/").pop().replace(/\.[^.]+$/, "");
+            const waferId = name.length >= 10 ? name.substring(8, 10) : name;
+            const lines = (await entry.text()).replace(/^\uFEFF/, "").split(/\n/);
+            for (let r = 35; r < lines.length; r++) {
+              const raw2 = lines[r].replace(/\r$/, "");
+              if (!raw2.trim()) continue;
+              const comma = raw2.indexOf(",");
+              out.push(comma >= 0 ? waferId + raw2.slice(comma) : waferId);
+            }
+          }
+          const mergedCsv = out.join("\r\n") + "\r\n";
+
+          // Parse & render
+          setBatchStatus(`🎨 (${i+1}/${total}) 產生 ${lot} heatmap ...`, "#1565a8");
+          let parsed, records;
+          try {
+            parsed = parseCsv(mergedCsv);
+          } catch(parseErr) {
+            results.push({ lotNo: lot, pngBlob: null, status: "PARSE_FAIL:parseCsv:" + parseErr.message });
+            setBatchStatus(`❌ (${i+1}/${total}) ${lot} parseCsv 失敗：${parseErr.message}`, "#a13b2f");
+            continue;
+          }
+          try {
+            records = loadRecords(parsed);
+          } catch(loadErr) {
+            results.push({ lotNo: lot, pngBlob: null, status: "PARSE_FAIL:loadRecords:" + loadErr.message });
+            setBatchStatus(`❌ (${i+1}/${total}) ${lot} loadRecords 失敗：${loadErr.message}｜headers=${JSON.stringify(parsed.headers)}`, "#a13b2f");
+            continue;
+          }
+          if (!records.length) {
+            results.push({ lotNo: lot, pngBlob: null, status: `PARSE_FAIL:0 records (csvRows=${parsed.rows.length}, outLines=${out.length}, waferSample=${out[1]||''})` });
+            setBatchStatus(`❌ (${i+1}/${total}) ${lot} 0 records｜CSV rows=${parsed.rows.length}，out lines=${out.length}，header=${parsed.headers.slice(0,5).join(',')}`, "#a13b2f");
+            continue;
+          }
+          // Render to a temporary off-screen canvas
+          const tmpCanvas = document.createElement("canvas");
+          const tmpCtx = tmpCanvas.getContext("2d");
+          // Use the overview renderer with a temp canvas swap
+          const realCanvas = hmEls.canvas;
+          hmEls.canvas = tmpCanvas;
+          try {
+            renderOverview(records, lot + " — " + selectedCol, selectedCol, lo, hi);
+            const pngBlob = await new Promise(res => tmpCanvas.toBlob(res, "image/png"));
+            results.push({ lotNo: lot, pngBlob, csvContent: mergedCsv, status: "OK" });
+          } finally {
+            hmEls.canvas = realCanvas;
+          }
+        } catch(e) {
+          results.push({ lotNo: lot, pngBlob: null, csvContent: null, status: "ERROR:" + e.message });
+          setBatchStatus(`❌ (${i+1}/${total}) ${lot} 錯誤：${e.message}`, "#a13b2f");
+        }
+      }
+
+      // Build zip output
+      setBatchStatus(`📦 打包 ${selectedCol}_heatmap.zip ...`, "#1565a8");
+      try {
+        const okResults = results.filter(r => r.status === "OK");
+        const zipEntries = [];
+        for (const r of okResults) {
+          zipEntries.push({ name: r.lotNo + "_" + selectedCol + "_heatmap.png", blob: r.pngBlob });
+          if (r.csvContent) {
+            zipEntries.push({ name: r.lotNo + "_merged.csv", blob: new Blob([r.csvContent], { type: "text/csv;charset=utf-8" }) });
+          }
+        }
+        const zipBlob = await buildSimpleZip(zipEntries);
+        const ok = okResults.length;
+        const fail = results.length - ok;
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement("a");
+        a.href = url; a.download = selectedCol + "_heatmap.zip"; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        const failDetails = results.filter(r => r.status !== "OK").map(r => `${r.lotNo}:${r.status}`).join(" | ");
+        setBatchStatus(`✅ 完成！成功 ${ok} 個，失敗/找不到 ${fail} 個。已下載 <b>${selectedCol}_heatmap.zip</b>${fail ? '<br><span style="color:#a13b2f;font-size:10px;">失敗：' + failDetails + '</span>' : ''}`, "#126c5a");
+      } catch(e) {
+        setBatchStatus("❌ 打包 ZIP 失敗：" + e.message, "#a13b2f");
+      }
+      runBtn.disabled = false;
+    });
+  }
+
+  // Wait for DOM
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", createBatchUI);
+  else createBatchUI();
+})();
+
+// ── Simple ZIP builder (store / no compression) ──────────────
+async function buildSimpleZip(files) {
+  // files: [{name: string, blob: Blob}]
+  const encoder = new TextEncoder();
+  const parts = [];
+  const localHeaders = [];
+  let offset = 0;
+  const centralDir = [];
+
+  for (const f of files) {
+    const data = new Uint8Array(await f.blob.arrayBuffer());
+    const nameBytes = encoder.encode(f.name);
+    // Local file header
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(localHeader.buffer);
+    lv.setUint32(0, 0x04034b50, true); // sig
+    lv.setUint16(4, 20, true);  // version needed
+    lv.setUint16(6, 0, true);   // flags
+    lv.setUint16(8, 0, true);   // method: store
+    lv.setUint16(10, 0, true); lv.setUint16(12, 0, true); // mod time/date
+    // CRC32
+    const crc = crc32(data);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, data.length, true); // compressed
+    lv.setUint32(22, data.length, true); // uncompressed
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true); // extra length
+    localHeader.set(nameBytes, 30);
+
+    // Central dir entry
+    const cd = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0, true); cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    cd.set(nameBytes, 46);
+    centralDir.push(cd);
+
+    parts.push(localHeader, data);
+    offset += localHeader.length + data.length;
+  }
+
+  const cdStart = offset;
+  const cdBlob = concat(centralDir);
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, files.length, true);
+  ev.setUint16(10, files.length, true);
+  ev.setUint32(12, cdBlob.length, true);
+  ev.setUint32(16, cdStart, true);
+  ev.setUint16(20, 0, true);
+
+  return new Blob([...parts, cdBlob, eocd], { type: "application/zip" });
+}
+
+function concat(arrays) {
+  const total = arrays.reduce((s, a) => s + a.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const a of arrays) { out.set(a, pos); pos += a.length; }
+  return out;
+}
+
+function crc32(data) {
+  let crc = 0xFFFFFFFF;
+  const table = crc32.table || (crc32.table = (() => {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c;
+    }
+    return t;
+  })());
+  for (let i = 0; i < data.length; i++) crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// Expose presets for batch use
+window._hmPresetsByColumn = {
+  IR0: [0, 45], VF0: [205, 285], VF1: [250, 330], VZ0: [19.5, 22.5],
+  IDSS2: [-90, 90], IR2_1: [-90, 90], IGSS2F: [-30, 30], BVDSS3: [19.5, 22.5]
+};
 
 hmEls.mergeBtn.addEventListener("click", mergeZipCsv);
 hmEls.csvFile.addEventListener("change", loadCsvFile);
@@ -2435,13 +2769,24 @@ hmEls.renderBtn2.addEventListener("click", renderIfReady);
 
 async function mergeZipCsv() {
     const zipFile = hmEls.zipFile.files && hmEls.zipFile.files[0];
-    const headerFile = hmEls.headerFile.files && hmEls.headerFile.files[0];
-    if (!zipFile || !headerFile) return setMergeStatus("請先選擇 ZIP 檔與表頭 CSV。", true);
+    if (!zipFile) return setMergeStatus("請先選擇 ZIP 檔。", true);
     try {
         hmEls.mergeBtn.disabled = true;
         setMergeStatus("讀取 ZIP 中...", false);
-        const headerLine = firstLine(await headerFile.text()).replace(/^\uFEFF/, "");
-        if (!headerLine.trim()) throw new Error("表頭 CSV 第一列是空的。");
+        // Header 優先序：① user 手動選的 headerFile → ② 依 ZIP 檔名自動判斷
+        const headerFile = hmEls.headerFile.files && hmEls.headerFile.files[0];
+        let headerLine, headerSource;
+        if (headerFile) {
+            headerLine = firstLine(await headerFile.text()).replace(/^\uFEFF/, "");
+            if (!headerLine.trim()) throw new Error("表頭 CSV 第一列是空的。");
+            headerSource = "（手動選擇）";
+        } else {
+            const lotNo = zipFile.name.replace(/\.zip$/i, "");
+            const auto = autoHeaderLine(lotNo);
+            headerLine = auto.line;
+            headerSource = "（自動 " + auto.label + "）";
+        }
+        setMergeStatus("表頭 " + headerSource + "，讀取 ZIP 中...", false);
         const entries = await readZipEntries(await zipFile.arrayBuffer());
         const csvEntries = entries.filter(e => e.name.toLowerCase().endsWith(".csv") && !e.isDirectory)
                                   .sort((a, b) => baseName(a.name).localeCompare(baseName(b.name)));
@@ -2881,6 +3226,37 @@ document.getElementById('btnLLD').addEventListener('click', function() {
 
 document.getElementById('btnULLD').addEventListener('click', function() {
   injectHeaderFile(b64ToFile(ULLD_B64, 'ULLD_header.csv'), 'ULLD');
+});
+
+// ── 依 Lot No. 自動判斷表頭 ───────────────────────────────────
+// EK / RK / NK → LLD    |    RP → ULLD
+// 回傳 { line: string, label: 'LLD'|'ULLD' }
+function autoHeaderLine(lotNo) {
+  // Use TextDecoder to correctly handle UTF-8 BOM (\xef\xbb\xbf) that atob() preserves as raw bytes
+  function b64ToHeaderLine(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const text = new TextDecoder('utf-8').decode(bytes); // TextDecoder strips UTF-8 BOM automatically
+    return text.split(/\r?\n/)[0];
+  }
+  const prefix = (lotNo || '').trim().toUpperCase().slice(0, 2);
+  if (prefix === 'RP') {
+    return { line: b64ToHeaderLine(ULLD_B64), label: 'ULLD' };
+  }
+  return { line: b64ToHeaderLine(LLD_B64), label: 'LLD' };
+}
+
+// ZIP 選擇時：若 user 尚未手動選 header，根據 ZIP 檔名自動 inject
+document.getElementById('zipFile').addEventListener('change', function() {
+  const file = this.files && this.files[0];
+  if (!file) return;
+  const headerInput = document.getElementById('headerFile');
+  const hasManual = headerInput.files && headerInput.files.length > 0;
+  if (hasManual) return; // 已手動選過，不覆蓋
+  const lotNo = file.name.replace(/\.zip$/i, '');
+  const { label } = autoHeaderLine(lotNo);
+  injectHeaderFile(b64ToFile(label === 'ULLD' ? ULLD_B64 : LLD_B64, label + '_header.csv'), label + '（自動）');
 });
 
 // ══════════════════════════════════════════════════════════════
