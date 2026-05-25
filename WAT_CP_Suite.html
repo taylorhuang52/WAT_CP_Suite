@@ -2445,6 +2445,23 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
   return null;
 }
 
+// One-pass directory scan → filename-keyed index map.
+// Subsequent lookups are O(1) regardless of directory size.
+async function buildZipIndex(dirHandle, onProgress, _basePath) {
+  const index = Object.create(null);
+  const base = _basePath || dirHandle.name;
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (handle.kind === "file") {
+      index[name] = { handle, path: base + "/" + name };
+      if (onProgress) onProgress(Object.keys(index).length, name);
+    } else if (handle.kind === "directory") {
+      const sub = await buildZipIndex(handle, onProgress, base + "/" + name);
+      Object.assign(index, sub);
+    }
+  }
+  return index;
+}
+
 // ── Batch Lot List Import ─────────────────────────────────────
 (function initBatchImport() {
   // We inject UI into the zipSearchBox after page load
@@ -2587,14 +2604,29 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
       const results = []; // { lotNo, pngBlob, status }
       const total = lots.length;
 
+      // ── Build directory index once (one scan regardless of lot count) ──
+      setBatchStatus(`🗂️ Scanning folder, please wait...`, "#1565a8");
+      let zipIndex;
+      try {
+        let scanned = 0;
+        zipIndex = await buildZipIndex(batchDirHandle, (n, name) => {
+          scanned = n;
+          if (n % 50 === 0) setBatchStatus(`🗂️ Scanning folder... ${n} files found`, "#1565a8");
+        });
+        setBatchStatus(`🗂️ Folder indexed: ${Object.keys(zipIndex).length} files found. Starting batch...`, "#1565a8");
+      } catch(e) {
+        setBatchStatus("❌ Failed to scan folder: " + e.message, "#a13b2f");
+        runBtn.disabled = false;
+        return;
+      }
 
       for (let i = 0; i < lots.length; i++) {
         const lot = lots[i];
         // Auto-detect header per Lot No.
         const { line: headerLine, label: headerLabel } = autoHeaderLine(lot);
-        setBatchStatus(`🔎 (${i+1}/${total}) Searching ${lot}.zip [${headerLabel}] ...`, "#1565a8");
+        setBatchStatus(`🔎 (${i+1}/${total}) Looking up ${lot}.zip [${headerLabel}] ...`, "#1565a8");
         try {
-          const found = await deepFindFile(batchDirHandle, lot + ".zip", null);
+          const found = zipIndex[lot + ".zip"] || null;
           if (!found) {
             results.push({ lotNo: lot, pngBlob: null, status: "NOT_FOUND" });
             setBatchStatus(`⚠️ (${i+1}/${total}) Not found: ${lot}.zip, skipping.`, "#a13b2f");
