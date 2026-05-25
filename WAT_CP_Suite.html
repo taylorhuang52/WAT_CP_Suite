@@ -2461,7 +2461,7 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
     label.innerHTML = "📋 Batch Lot List → Generate Heatmap ZIP";
     zipSearchBox.appendChild(label);
 
-    // Row: file input + column selector + download button
+    // Row 1: file input
     const row1 = document.createElement("div");
     row1.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;";
 
@@ -2472,13 +2472,44 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
     fileInput.style.cssText = "font-size:11px;flex:1;min-width:0;";
     fileInput.title = "Select a .txt or .csv file with one Lot No. per line";
 
+    row1.appendChild(fileInput);
+    zipSearchBox.appendChild(row1);
+
+    // Row 2: LLD column selector + ULLD column selector + run button
+    const row2 = document.createElement("div");
+    row2.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;";
+
+    // LLD column selector with label
+    const lldLabel = document.createElement("span");
+    lldLabel.style.cssText = "font-size:10px;font-weight:700;color:#1565a8;white-space:nowrap;flex-shrink:0;";
+    lldLabel.textContent = "LLD:";
+
     const colSelect = document.createElement("select");
     colSelect.id = "batchColSelect";
+    colSelect.title = "LLD heatmap column";
     colSelect.style.cssText = "font-size:11px;padding:2px 4px;border:1px solid #b0ccc8;border-radius:4px;background:#fff;";
     ["IR0","VF0","VF1","VZ0","IDSS2","IR2_1","IGSS2F","BVDSS3"].forEach(c => {
       const o = document.createElement("option");
       o.value = c; o.textContent = c;
       colSelect.appendChild(o);
+    });
+
+    // ULLD column selector with label
+    const ulldLabel = document.createElement("span");
+    ulldLabel.style.cssText = "font-size:10px;font-weight:700;color:#0e6655;white-space:nowrap;flex-shrink:0;";
+    ulldLabel.textContent = "ULLD:";
+
+    const ulldColSelect = document.createElement("select");
+    ulldColSelect.id = "batchColSelectULLD";
+    ulldColSelect.title = "ULLD CP heatmap column (used when lot prefix = RP)";
+    ulldColSelect.style.cssText = "font-size:11px;padding:2px 4px;border:1px solid #b0ccc8;border-radius:4px;background:#fff;";
+    ["IGSS2F","IGSS3","IGSS2R","IDSS2","RIDSS2","VFSDS1",
+     "BVDSS_100uA","BVDSS2","BVDSS3","BVDSS_100mA",
+     "Delta1","VTH1","VTH2","Delta2","IGSS2F_2",
+     "B37_Resistor","B35_IDSS2_test2"].forEach(c => {
+      const o = document.createElement("option");
+      o.value = c; o.textContent = c;
+      ulldColSelect.appendChild(o);
     });
 
     const runBtn = document.createElement("button");
@@ -2487,10 +2518,12 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
     runBtn.style.cssText = "padding:3px 10px;font-size:11px;white-space:nowrap;flex-shrink:0;background:#e6f4f1;border-color:#7bbdb5;color:#1a5c50;font-weight:600;";
     runBtn.textContent = "⚡ Batch Generate ZIP";
 
-    row1.appendChild(fileInput);
-    row1.appendChild(colSelect);
-    row1.appendChild(runBtn);
-    zipSearchBox.appendChild(row1);
+    row2.appendChild(lldLabel);
+    row2.appendChild(colSelect);
+    row2.appendChild(ulldLabel);
+    row2.appendChild(ulldColSelect);
+    row2.appendChild(runBtn);
+    zipSearchBox.appendChild(row2);
 
     const statusDiv = document.createElement("div");
     statusDiv.id = "batchStatus";
@@ -2534,13 +2567,21 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
       const lots = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith("#"));
       if (!lots.length) { setBatchStatus("⚠️ Lot list is empty.", "#a13b2f"); return; }
 
-      const selectedCol = colSelect.value;
-      const presets = window._hmPresetsByColumn || {
+      const selectedColLLD  = colSelect.value;
+      const selectedColULLD = ulldColSelect.value;
+      const presetsLLD = window._hmPresetsByColumn || {
         IR0: [0, 45], VF0: [205, 285], VF1: [250, 330], VZ0: [19.5, 22.5],
         IDSS2: [-90, 90], IR2_1: [-90, 90], IGSS2F: [-30, 30], BVDSS3: [19.5, 22.5]
       };
-      const colPreset = presets[selectedCol] ? (Array.isArray(presets[selectedCol][0]) ? presets[selectedCol][0].slice(1) : presets[selectedCol]) : [0, 100];
-      const [lo, hi] = colPreset;
+      const presetsULLD = window._hmPresetsByColumnULLD || {
+        IGSS2F: [-30, 30], IGSS3: [-30, 30], IGSS2R: [-30, 30], IGSS2F_2: [-30, 30],
+        IDSS2: [-90, 90], RIDDS2: [0, 5],
+        VFSDS1: [0.45, 0.52],
+        BVDSS_100uA: [19, 23], BVDSS2: [19, 23], BVDSS3: [19, 23], BVDSS_100mA: [0, 40],
+        Delta1: [-0.04, 0.2], Delta2: [-0.04, 0.2],
+        VTH1: [1.5, 3.4], VTH2: [1.7, 3.6],
+        B37_Resistor: [240000, 420000], B35_IDSS2_test2: [-90, 90]
+      };
 
       runBtn.disabled = true;
       const results = []; // { lotNo, pngBlob, status }
@@ -2608,6 +2649,13 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
             setBatchStatus(`❌ (${i+1}/${total}) ${lot} 0 records｜CSV rows=${parsed.rows.length}，out lines=${out.length}，header=${parsed.headers.slice(0,5).join(',')}`, "#a13b2f");
             continue;
           }
+          // Determine per-lot column and range based on LLD vs ULLD
+          const isULLD = (headerLabel === 'ULLD');
+          const selectedCol = isULLD ? selectedColULLD : selectedColLLD;
+          const presets = isULLD ? presetsULLD : presetsLLD;
+          const colPreset = presets[selectedCol] ? (Array.isArray(presets[selectedCol][0]) ? presets[selectedCol][0].slice(1) : presets[selectedCol]) : [0, 100];
+          const [lo, hi] = colPreset;
+
           // Render to a temporary off-screen canvas
           const tmpCanvas = document.createElement("canvas");
           const tmpCtx = tmpCanvas.getContext("2d");
@@ -2617,7 +2665,7 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
           try {
             renderOverview(records, lot + " — " + selectedCol, selectedCol, lo, hi);
             const pngBlob = await new Promise(res => tmpCanvas.toBlob(res, "image/png"));
-            results.push({ lotNo: lot, pngBlob, csvContent: mergedCsv, status: "OK" });
+            results.push({ lotNo: lot, pngBlob, csvContent: mergedCsv, colUsed: selectedCol, status: "OK" });
           } finally {
             hmEls.canvas = realCanvas;
           }
@@ -2628,12 +2676,12 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
       }
 
       // Build zip output
-      setBatchStatus(`📦 Packaging ${selectedCol}_heatmap.zip ...`, "#1565a8");
+      setBatchStatus(`📦 Packaging batch_heatmap.zip ...`, "#1565a8");
       try {
         const okResults = results.filter(r => r.status === "OK");
         const zipEntries = [];
         for (const r of okResults) {
-          zipEntries.push({ name: r.lotNo + "_" + selectedCol + "_heatmap.png", blob: r.pngBlob });
+          zipEntries.push({ name: r.lotNo + "_" + r.colUsed + "_heatmap.png", blob: r.pngBlob });
           if (r.csvContent) {
             zipEntries.push({ name: r.lotNo + "_merged.csv", blob: new Blob([r.csvContent], { type: "text/csv;charset=utf-8" }) });
           }
@@ -2643,10 +2691,10 @@ async function deepFindFile(dirHandle, fileName, onProgress, _basePath) {
         const fail = results.length - ok;
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement("a");
-        a.href = url; a.download = selectedCol + "_heatmap.zip"; a.click();
+        a.href = url; a.download = "batch_heatmap.zip"; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 2000);
         const failDetails = results.filter(r => r.status !== "OK").map(r => `${r.lotNo}:${r.status}`).join(" | ");
-        setBatchStatus(`✅ Done! Success: ${ok}, failed/not found: ${fail}. Downloaded <b>${selectedCol}_heatmap.zip</b>${fail ? '<br><span style="color:#a13b2f;font-size:10px;">Failed: ' + failDetails + '</span>' : ''}`, "#126c5a");
+        setBatchStatus(`✅ Done! Success: ${ok}, failed/not found: ${fail}. Downloaded <b>batch_heatmap.zip</b>${fail ? '<br><span style="color:#a13b2f;font-size:10px;">Failed: ' + failDetails + '</span>' : ''}`, "#126c5a");
       } catch(e) {
         setBatchStatus("❌ ZIP packaging failed: " + e.message, "#a13b2f");
       }
