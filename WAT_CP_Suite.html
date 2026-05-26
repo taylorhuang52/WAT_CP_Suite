@@ -3149,7 +3149,7 @@ function rgb(c) { return `rgb(${c[0]},${c[1]},${c[2]})`; }
 
 function renderOverview(allRecords, title, col, lo, hi) {
     const ctx = hmEls.canvas.getContext("2d");
-    const colsPerRow = 5, cell = 7, margin = 4, labelH = 16, padX = 8, padY = 8, outer = 30, titleH = 28;
+    const colsPerRow = 5, cell = 7, margin = 4, labelH = 16, padX = 8, padY = 8, outer = 30, titleH = 56;
     const ext = extents(allRecords);
     const dieW = ext.gridW * cell, dieH = ext.gridH * cell;
     const waferPx = Math.max(dieW, dieH) + margin * 2;
@@ -3159,7 +3159,7 @@ function renderOverview(allRecords, title, col, lo, hi) {
     const height = outer * 2 + titleH + rows * (labelH + waferPx) + (rows - 1) * padY;
     sizeCanvas(width, height);
     ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = "#000099"; ctx.font = "700 12px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#000099"; ctx.font = "700 24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(title || "Wafer Heatmap", width / 2, outer + titleH / 2);
     const byWafer = groupByWafer(allRecords);
     ctx.font = "12px Arial"; ctx.textAlign = "left"; ctx.textBaseline = "top";
@@ -3196,7 +3196,7 @@ function renderOverview(allRecords, title, col, lo, hi) {
 function renderDetail(allRecords, col, waferIds, lo, hi) {
     if (!waferIds.length) throw new Error("Please select at least one Wafer ID.");
     const ctx = hmEls.canvas.getContext("2d");
-    const cell = 36, margin = 6, label = 20, outer = 10, gap = 14, cols = 2;
+    const cell = 36, margin = 6, label = 40, outer = 10, gap = 14, cols = 2;
     const ext = extents(allRecords);
     const dieW = ext.gridW * cell, dieH = ext.gridH * cell;
     const waferPx = Math.max(dieW, dieH) + margin * 2;
@@ -3213,7 +3213,7 @@ function renderDetail(allRecords, col, waferIds, lo, hi) {
         const cx = ox + waferPx / 2, cy = oy + waferPx / 2, radius = waferPx / 2;
         const waferData = byWafer.get(wid) || new Map();
         ctx.fillStyle = "#fff"; ctx.fillRect(baseX, baseY, tileW, tileH);
-        ctx.fillStyle = "#111"; ctx.font = "700 13px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle = "#111"; ctx.font = "700 26px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText(`#${wid}  ${col}`, baseX + tileW / 2, baseY + outer + label / 2);
         ctx.fillStyle = "#bebebe"; ellipse(ctx, ox, oy, waferPx, true);
         const dieOffX = ox + margin + (waferPx - margin * 2 - dieW) / 2;
