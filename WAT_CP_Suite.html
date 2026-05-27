@@ -807,10 +807,21 @@
           </select>
         </div>
         <div class="col-6">
-          <label class="fw-bold mb-1" style="font-size:0.85rem;">3. Y-Axis</label>
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">3. X-Axis</label>
+          <select id="xAxisSelect" class="form-select form-select-sm">
+            <option value="RUN_ON">RUN ON (Timeline)</option>
+            <option value="Lot_No">Lot No (A→Z / 0→9)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-2 align-items-end mt-1">
+        <div class="col-12">
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">4. Y-Axis</label>
           <select id="yAxisSelect" class="form-select form-select-sm">
             <option value="WAT Yield" selected>WAT Yield (%)</option>
             <option value="CP Yield">CP Yield (%)</option>
+            <option value="WAT+CP Yield">WAT + CP Yield (疊圖)</option>
             <option value="Yield gap">Yield gap</option>
             <option value="IR(18V)">IR(18V)</option>
             <option value="IR">IR</option>
@@ -968,7 +979,11 @@
         <div class="col-6">
           <label class="fw-bold mb-1" style="font-size:0.85rem;">Y Axis (Parameter)</label>
           <select id="ulldYAxisSelect" class="form-select form-select-sm">
-            <option value="Yield(%)" selected>Yield (%)</option>
+            <option value="WAT Yield" selected>WAT Yield (%)</option>
+            <option value="CP Yield">CP Yield (%)</option>
+            <option value="WAT+CP Yield">WAT + CP Yield (疊圖)</option>
+            <option value="Yield gap">Yield gap</option>
+            <option value="Yield(%)">Yield (%) [舊格式]</option>
             <optgroup label="WAT Parameters">
               <option value="VSD">VSD</option>
               <option value="VSD(1mA)">VSD(1mA)</option>
@@ -1799,7 +1814,11 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
 
 function buildSummaryXLSX(rows, filenameOverride) {
     const wb = XLSX.utils.book_new();
-    const hasCp = dailyReportData && dailyReportData.length > 0;
+    const hasCp = (dailyReportData && dailyReportData.length > 0) ||
+        (summaryData.length > 0 &&
+         Object.keys(summaryData[0]).some(k =>
+             ['CP Yield','WAT Yield','Yield gap'].includes(k.trim())
+         ));
     const waferCols = Array.from({length:25}, (_,i) => `#${i+1}`);
 
     // Base params columns (always present)
@@ -2106,7 +2125,8 @@ document.getElementById('summaryFile').addEventListener('change', function(e) {
 });
 
 function checkChartReady() {
-    if (mappingData.length > 0 && summaryData.length > 0) {
+    if (summaryData.length > 0) {
+        updateDeviceDropdown();
         document.getElementById('deviceSelect').disabled = false;
         document.getElementById('btnGenerate').disabled = false;
         log("Chart UI ready.");
@@ -2115,7 +2135,9 @@ function checkChartReady() {
 
 function updateDeviceDropdown() {
     const ds = document.getElementById('deviceSelect');
-    const uniqueDevices = [...new Set(mappingData.map(m => m.Device))].sort();
+    const fromMapping = mappingData.map(m => m.Device);
+    const fromSummary = summaryData.map(s => (s['Device Mapping'] || s['Device'] || '').toString().trim()).filter(Boolean);
+    const uniqueDevices = [...new Set([...fromMapping, ...fromSummary])].sort();
     ds.innerHTML = '<option value="">-- Select Device --</option>';
     uniqueDevices.forEach(d => ds.add(new Option(d, d)));
     if (uniqueDevices.length > 0) ds.disabled = false;
@@ -2127,10 +2149,14 @@ document.getElementById('deviceSelect').addEventListener('change', function() {
     const device = this.value;
     ps.innerHTML = '';
     if (!device) { ps.disabled = true; saBtn.disabled = true; return; }
-    const filteredParts = [...new Set(mappingData.filter(m => m.Device === device).map(m => m.PartNo))].sort();
+    const fromMapping = mappingData.filter(m => m.Device === device).map(m => m.PartNo);
+    const fromSummary = summaryData
+        .filter(s => (s['Device Mapping'] || s['Device'] || '').toString().trim() === device)
+        .map(s => (s['Part No'] || '').toString().trim()).filter(Boolean);
+    const filteredParts = [...new Set([...fromMapping, ...fromSummary])].sort();
     filteredParts.forEach(p => ps.add(new Option(p, p)));
     ps.disabled = false; saBtn.disabled = false;
-    log(`Device: ${device} → ${filteredParts.length} Part Nos`);
+    log(`Device: ${device} → ${filteredParts.length} Part Nos (mapping:${fromMapping.length} + summary:${fromSummary.length})`);
 });
 
 document.getElementById('btnSelectAll').addEventListener('click', function() {
@@ -2146,12 +2172,39 @@ document.getElementById('btnGenerate').addEventListener('click', function() {
     const selectedParts = [...ps.options].filter(o => o.selected).map(o => o.value);
     const yAxisCol = document.getElementById('yAxisSelect').value;
     const yAxisLabel = document.getElementById('yAxisSelect').options[document.getElementById('yAxisSelect').selectedIndex].text;
+    const xMode = document.getElementById('xAxisSelect').value;
+    const isTimeX = xMode === 'RUN_ON';
     if (!dev || selectedParts.length === 0) { alert("Please select a Device and at least one Part No."); return; }
-    log(`Generating chart for ${dev} / [${selectedParts.join(', ')}], Y-axis: ${yAxisCol}...`);
+    log(`Generating chart for ${dev} / [${selectedParts.join(', ')}], X=${xMode}, Y-axis: ${yAxisCol}...`);
     const datasets = [];
     const legendChips = document.getElementById('legendChips');
     legendChips.innerHTML = '';
     let globalMin = Infinity, globalMax = -Infinity;
+    const isOverlay = yAxisCol === 'WAT+CP Yield';
+
+    function getPoints(matches, col) {
+        return matches.map(m => {
+            let yVal = m[col];
+            if (yVal === undefined || yVal === '') {
+                // fallback: WAT Yield ↔ Yield(%)
+                if (col === 'WAT Yield') yVal = m['Yield(%)'];
+                else if (col === 'Yield(%)') yVal = m['WAT Yield'];
+            }
+            if (yVal === undefined || yVal === '') {
+                for (const k of Object.keys(m)) { if (k.trim() === col.trim()) { yVal = m[k]; break; } }
+            }
+            const yNum = parseFloat(yVal);
+            if (isNaN(yNum)) return null;
+            if (isTimeX) {
+                const xDate = parseDate(m['RUN ON']);
+                if (!xDate) return null;
+                return { x: xDate, y: yNum, lot: m['Lot no.'] || '' };
+            } else {
+                return { x: m['Lot no.'] || '', y: yNum };
+            }
+        }).filter(Boolean).sort((a,b) => isTimeX ? a.x - b.x : a.x.localeCompare(b.x));
+    }
+
     selectedParts.forEach((part, idx) => {
         const matches = summaryData.filter(s => {
             const deviceMatch = (s['Device Mapping']||s['Device']||"").trim() === dev;
@@ -2159,31 +2212,65 @@ document.getElementById('btnGenerate').addEventListener('click', function() {
             return deviceMatch && partMatch;
         });
         if (matches.length === 0) { log(`Warning: No records for ${dev}/${part}`); return; }
-        const points = matches.map(m => {
-            let yVal = m[yAxisCol];
-            if (yVal === undefined || yVal === '') {
-                for (const k of Object.keys(m)) { if (k.trim() === yAxisCol.trim()) { yVal = m[k]; break; } }
+
+        if (isOverlay) {
+            // WAT/CP use distinct colour pairs per Part No
+            // LLD: WAT = red family, CP = green family
+            const WAT_PALETTE = ['#e6194b','#c0392b','#e74c3c','#ff6b6b','#c0392b','#922b21','#f1948a','#ec407a'];
+            const CP_PALETTE  = ['#3cb44b','#27ae60','#2ecc71','#a9dfbf','#1e8449','#58d68d','#a3e4d7','#52be80'];
+            const watColor = WAT_PALETTE[idx % WAT_PALETTE.length];
+            const cpColor  = CP_PALETTE[idx % CP_PALETTE.length];
+            // WAT series — solid circle
+            const watPoints = getPoints(matches, 'WAT Yield');
+            // CP series — triangle, distinct colour
+            const cpPoints  = getPoints(matches, 'CP Yield');
+            if (watPoints.length === 0 && cpPoints.length === 0) {
+                log(`Warning: No WAT/CP Yield data for ${dev}/${part}`); return;
             }
-            return { x: parseDate(m['RUN ON']), y: parseFloat(yVal) };
-        }).filter(p => p.x && !isNaN(p.y)).sort((a,b) => a.x - b.x);
-        if (points.length === 0) { log(`Warning: No valid Y-axis data (${yAxisCol}) for ${dev}/${part}`); return; }
-        points.forEach(p => { if (p.x < globalMin) globalMin = p.x; if (p.x > globalMax) globalMax = p.x; });
-        const { color, shape } = seriesStyle(idx);
-        datasets.push({ label: part, data: points, backgroundColor: color + 'BB', borderColor: color,
-                        pointStyle: shape, pointRadius: 6, pointHoverRadius: 8 });
-        const chip = document.createElement('div');
-        chip.className = 'legend-chip';
-        chip.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${part}`;
-        legendChips.appendChild(chip);
-        log(`  → ${part}: ${points.length} points`);
+            watPoints.forEach(p => { if (p.x < globalMin) globalMin = p.x; if (p.x > globalMax) globalMax = p.x; });
+            cpPoints.forEach(p =>  { if (p.x < globalMin) globalMin = p.x; if (p.x > globalMax) globalMax = p.x; });
+            if (watPoints.length > 0) {
+                datasets.push({ label: `${part} (WAT)`, data: watPoints,
+                    backgroundColor: watColor + 'CC', borderColor: watColor,
+                    pointStyle: 'circle', pointRadius: 6, pointHoverRadius: 8,
+                    showLine: false });
+            }
+            if (cpPoints.length > 0) {
+                datasets.push({ label: `${part} (CP)`, data: cpPoints,
+                    backgroundColor: cpColor + 'DD', borderColor: cpColor,
+                    pointStyle: 'triangle', pointRadius: 7, pointHoverRadius: 9,
+                    showLine: false });
+            }
+            const chip = document.createElement('div');
+            chip.className = 'legend-chip';
+            chip.innerHTML = `<span class="legend-swatch" style="background:${watColor}"></span>` +
+                             `<span style="margin-right:4px">${part} ●WAT</span>` +
+                             `<span class="legend-swatch" style="background:${cpColor}"></span>` +
+                             `${part} ▲CP`;
+            legendChips.appendChild(chip);
+            log(`  → ${part}: WAT ${watPoints.length} pts, CP ${cpPoints.length} pts`);
+        } else {
+            const points = getPoints(matches, yAxisCol);
+            if (points.length === 0) { log(`Warning: No valid Y-axis data (${yAxisCol}) for ${dev}/${part}`); return; }
+            points.forEach(p => { if (p.x < globalMin) globalMin = p.x; if (p.x > globalMax) globalMax = p.x; });
+            const { color, shape } = seriesStyle(idx);
+            datasets.push({ label: part, data: points, backgroundColor: color + 'BB', borderColor: color,
+                            pointStyle: shape, pointRadius: 6, pointHoverRadius: 8 });
+            const chip = document.createElement('div');
+            chip.className = 'legend-chip';
+            chip.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${part}`;
+            legendChips.appendChild(chip);
+            log(`  → ${part}: ${points.length} points`);
+        }
     });
     if (datasets.length === 0) { alert("No data found for selected Part Nos."); return; }
-    if ((yAxisCol === 'WAT Yield' || yAxisCol === 'Yield(%)') && globalMin !== Infinity) {
+    const isYield = isOverlay || yAxisCol === 'WAT Yield' || yAxisCol === 'Yield(%)';
+    if (isYield && isTimeX && globalMin !== Infinity) {
         datasets.push({ label: '100% Target', data: [{ x: globalMin, y: 100 }, { x: globalMax, y: 100 }],
                         type: 'line', borderColor: 'red', borderDash: [5, 5], pointRadius: 0, fill: false, tension: 0 });
     }
     document.getElementById('chartTitle').textContent = `${dev} — ${yAxisLabel}`;
-    renderChart(datasets, dev, yAxisLabel, yAxisCol === 'WAT Yield' || yAxisCol === 'Yield(%)');
+    renderChart(datasets, dev, yAxisLabel, isYield, isTimeX);
 });
 
 function parseDate(s) {
@@ -2197,9 +2284,12 @@ function parseDate(s) {
     return isNaN(d.getTime()) ? null : d;
 }
 
-function renderChart(datasets, deviceLabel, yLabel, isYield) {
+function renderChart(datasets, deviceLabel, yLabel, isYield, isTimeX) {
     const ctx = document.getElementById('yieldChart').getContext('2d');
     if (chartInstance) chartInstance.destroy();
+    const xScaleCfg = isTimeX
+        ? { type: 'time', time: { unit: 'week' }, title: { display: true, text: 'RUN ON (Week)', font: { size: 12 } } }
+        : { type: 'category', title: { display: true, text: 'Lot No', font: { size: 12 } }, ticks: { maxRotation: 45, minRotation: 30 } };
     chartInstance = new Chart(ctx, {
         type: 'scatter',
         data: { datasets },
@@ -2214,13 +2304,14 @@ function renderChart(datasets, deviceLabel, yLabel, isYield) {
                             if (ctx.dataset.label === '100% Target') return null;
                             const d = ctx.raw;
                             const yStr = isYield ? `${d.y}%` : d.y;
-                            return ` ${ctx.dataset.label}: ${yStr}  (${d.x instanceof Date ? d.x.toLocaleDateString() : d.x})`;
+                            const xStr = isTimeX ? (d.x instanceof Date ? d.x.toLocaleDateString() : d.x) : d.x;
+                            return ` ${ctx.dataset.label}: ${yStr}  (${xStr})`;
                         }
                     }
                 }
             },
             scales: {
-                x: { type: 'time', time: { unit: 'week' }, title: { display: true, text: 'RUN ON (Week)', font: { size: 12 } } },
+                x: xScaleCfg,
                 y: { min: isYield ? 0 : undefined, max: isYield ? 120 : undefined, title: { display: true, text: yLabel, font: { size: 12 } } }
             }
         }
@@ -3585,7 +3676,7 @@ document.getElementById('ulldBtnGenerate').addEventListener('click', function() 
   const ps = document.getElementById('ulldPartNoSelect');
   const selectedParts = [...ps.options].filter(o => o.selected).map(o => o.value);
   const yCol   = document.getElementById('ulldYAxisSelect').value;
-  const xMode  = document.getElementById('ulldXAxisSelect').value;  // 'Lot_No' or 'RUN_ON'
+  const xMode  = document.getElementById('ulldXAxisSelect').value;
   const yLabel = document.getElementById('ulldYAxisSelect').options[document.getElementById('ulldYAxisSelect').selectedIndex].text;
 
   if (!selectedParts.length) { alert('Please select at least one Part No'); return; }
@@ -3595,18 +3686,22 @@ document.getElementById('ulldBtnGenerate').addEventListener('click', function() 
   legendEl.innerHTML = '';
   const datasets = [];
   let globalMin = Infinity, globalMax = -Infinity;
-  const isTimeX = xMode === 'RUN_ON';
-  const isYield = yCol === 'Yield(%)';
+  const isTimeX   = xMode === 'RUN_ON';
+  const isOverlay = yCol === 'WAT+CP Yield';
+  const isYield   = isOverlay || yCol === 'WAT Yield' || yCol === 'CP Yield' || yCol === 'Yield gap' || yCol === 'Yield(%)';
 
-  selectedParts.forEach((part, idx) => {
-    const matches = ulldData.filter(r => (r['Part No']||'').toString().trim() === part);
-    if (!matches.length) { ulldLog(`⚠ No records for Part No "${part}"`); return; }
+  // ULLD colour pairs: WAT = navy/blue family, CP = orange/amber family
+  const ULLD_WAT = ['#1565c0','#1976d2','#1a237e','#0288d1','#01579b','#283593','#0d47a1','#006064'];
+  const ULLD_CP  = ['#e65100','#f57c00','#ef6c00','#ff8f00','#e64a19','#bf360c','#ff6d00','#ff9800'];
 
-    const points = matches.map(m => {
-      const yRaw = m[yCol];
+  function ulldGetPoints(matches, col) {
+    return matches.map(m => {
+      let yRaw = m[col];
+      // WAT Yield ↔ Yield(%) fallback
+      if ((yRaw === undefined || yRaw === '') && col === 'WAT Yield') yRaw = m['Yield(%)'];
+      if ((yRaw === undefined || yRaw === '') && col === 'Yield(%)') yRaw = m['WAT Yield'];
       const yVal = parseFloat(yRaw);
       if (isNaN(yVal)) return null;
-
       if (isTimeX) {
         const xDate = ulldParseDate(m['RUN_ON']);
         if (!xDate) return null;
@@ -3617,30 +3712,59 @@ document.getElementById('ulldBtnGenerate').addEventListener('click', function() 
         return { x: m['Lot_No'] || '', y: yVal };
       }
     }).filter(Boolean);
+  }
 
-    if (!points.length) { ulldLog(`⚠ No valid data for Part No "${part}" / Y=${yCol}`); return; }
+  selectedParts.forEach((part, idx) => {
+    const matches = ulldData.filter(r => (r['Part No']||'').toString().trim() === part);
+    if (!matches.length) { ulldLog(`⚠ No records for Part No "${part}"`); return; }
 
-    if (!isTimeX) {
-      points.forEach(p => { if (p.y < globalMin) globalMin = p.y; if (p.y > globalMax) globalMax = p.y; });
+    if (isOverlay) {
+      const watColor = ULLD_WAT[idx % ULLD_WAT.length];
+      const cpColor  = ULLD_CP[idx % ULLD_CP.length];
+      const watPoints = ulldGetPoints(matches, 'WAT Yield');
+      const cpPoints  = ulldGetPoints(matches, 'CP Yield');
+      if (!watPoints.length && !cpPoints.length) { ulldLog(`⚠ No WAT/CP data for "${part}"`); return; }
+      if (!isTimeX) {
+        [...watPoints, ...cpPoints].forEach(p => { if (p.y < globalMin) globalMin = p.y; if (p.y > globalMax) globalMax = p.y; });
+      }
+      if (watPoints.length) {
+        datasets.push({ label:`${part} (WAT)`, data: watPoints,
+          backgroundColor: watColor+'CC', borderColor: watColor,
+          pointStyle:'circle', pointRadius:6, pointHoverRadius:8 });
+      }
+      if (cpPoints.length) {
+        datasets.push({ label:`${part} (CP)`, data: cpPoints,
+          backgroundColor: cpColor+'DD', borderColor: cpColor,
+          pointStyle:'triangle', pointRadius:7, pointHoverRadius:9 });
+      }
+      const chip = document.createElement('div');
+      chip.className = 'legend-chip';
+      chip.innerHTML = `<span class="legend-swatch" style="background:${watColor}"></span>` +
+                       `<span style="margin-right:4px">${part} ●WAT</span>` +
+                       `<span class="legend-swatch" style="background:${cpColor}"></span>${part} ▲CP`;
+      legendEl.appendChild(chip);
+      ulldLog(`  → ${part}: WAT ${watPoints.length} pts, CP ${cpPoints.length} pts`);
+    } else {
+      const points = ulldGetPoints(matches, yCol);
+      if (!points.length) { ulldLog(`⚠ No valid data for Part No "${part}" / Y=${yCol}`); return; }
+      if (!isTimeX) {
+        points.forEach(p => { if (p.y < globalMin) globalMin = p.y; if (p.y > globalMax) globalMax = p.y; });
+      }
+      const { color, shape } = seriesStyle(idx);
+      datasets.push({ label: part, data: points,
+        backgroundColor: color+'BB', borderColor: color,
+        pointStyle: shape, pointRadius: 6, pointHoverRadius: 8 });
+      const chip = document.createElement('div');
+      chip.className = 'legend-chip';
+      chip.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${part}`;
+      legendEl.appendChild(chip);
+      ulldLog(`  → ${part}: ${points.length} points`);
     }
-
-    const { color, shape } = seriesStyle(idx);
-    datasets.push({
-      label: part, data: points,
-      backgroundColor: color+'BB', borderColor: color,
-      pointStyle: shape, pointRadius: 6, pointHoverRadius: 8
-    });
-
-    const chip = document.createElement('div');
-    chip.className = 'legend-chip';
-    chip.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${part}`;
-    legendEl.appendChild(chip);
-    ulldLog(`  → ${part}: ${points.length} points`);
   });
 
   if (!datasets.length) { alert('No valid data for the selected Part No.'); return; }
 
-  // Add 100% reference line for Yield
+  // 100% reference line for yield modes (time X only)
   if (isYield && isTimeX && globalMin !== Infinity) {
     datasets.push({ label:'100% Target', data:[{x:globalMin,y:100},{x:globalMax,y:100}],
       type:'line', borderColor:'red', borderDash:[5,5], pointRadius:0, fill:false, tension:0 });
