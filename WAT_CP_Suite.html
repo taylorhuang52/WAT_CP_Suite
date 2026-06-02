@@ -807,17 +807,23 @@
           </select>
         </div>
         <div class="col-6">
-          <label class="fw-bold mb-1" style="font-size:0.85rem;">3. X-Axis</label>
-          <select id="xAxisSelect" class="form-select form-select-sm">
-            <option value="RUN_ON">RUN ON (Timeline)</option>
-            <option value="Lot_No">Lot No (A→Z / 0→9)</option>
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">3. Station</label>
+          <select id="stationSelect" class="form-select form-select-sm" disabled>
+            <option value="">-- All Stations --</option>
           </select>
         </div>
       </div>
 
       <div class="row g-2 align-items-end mt-1">
-        <div class="col-12">
-          <label class="fw-bold mb-1" style="font-size:0.85rem;">4. Y-Axis</label>
+        <div class="col-6">
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">4. X-Axis</label>
+          <select id="xAxisSelect" class="form-select form-select-sm">
+            <option value="RUN_ON">RUN ON (Timeline)</option>
+            <option value="Lot_No">Lot No (A→Z / 0→9)</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="fw-bold mb-1" style="font-size:0.85rem;">5. Y-Axis</label>
           <select id="yAxisSelect" class="form-select form-select-sm">
             <option value="WAT Yield" selected>WAT Yield (%)</option>
             <option value="CP Yield">CP Yield (%)</option>
@@ -1622,6 +1628,7 @@ document.getElementById('dailyReportFile').addEventListener('change', function(e
             const iLot   = headers.indexOf('Lot Num');
             const iTypeA = headers.indexOf('Type(A)');
             const iTypeMV = headers.indexOf('Type(mV)');
+            const iStation = headers.indexOf('Station');
             if (iLot < 0 || iTypeA < 0 || iTypeMV < 0) {
                 throw new Error('DailyReport must have columns: Lot Num, Type(A), Type(mV)');
             }
@@ -1640,8 +1647,9 @@ document.getElementById('dailyReportFile').addEventListener('change', function(e
                 const typeA  = String(row[iTypeA] || '').trim();
                 const typeMV = String(row[iTypeMV] || '').trim().replace(/MV$/i, 'mV');
                 const cpYield = iYield >= 0 ? String(row[iYield] || '').trim() : '';
+                const station = iStation >= 0 ? String(row[iStation] || '').trim() : '';
                 if (!lotNum) continue;
-                dailyReportData.push({ lotNum, typeA, typeMV, cpYield });
+                dailyReportData.push({ lotNum, typeA, typeMV, cpYield, station });
             }
             const statusEl = document.getElementById('dailyReportStatus');
             statusEl.innerHTML = `✅ Loaded ${dailyReportData.length} rows from <b>${file.name}</b>`;
@@ -1789,6 +1797,7 @@ document.getElementById('btnGenerateSummary').addEventListener('click', async fu
         const yieldGap = (!isNaN(watYield) && !isNaN(cpYield)) ? (watYield - cpYield).toFixed(2) : '';
         const row = { 'Lot no.': lot, 'RUN ON': qc9.runOn,
                       'WAT Yield': qc9.yieldPct, 'CP Yield': cpYieldStr, 'Yield gap': yieldGap,
+                      'Station': drEntry2 ? (drEntry2.station || '') : '',
                       'Device Mapping': deviceMapping, 'Part No': qc9.partNo3, 'EPI': epi, 'BGBM': bgbm };
         difParams.forEach(p => { row[p] = dif[p] !== undefined ? dif[p] : ''; });
         // Per-wafer yield from qc9 WAFER SUMMARY table (#1~#25)
@@ -1827,7 +1836,7 @@ function buildSummaryXLSX(rows, filenameOverride) {
     // Header: CP Yield / Yield gap only when CP DailyReport is imported
     let headers;
     if (hasCp) {
-        headers = ['Lot no.','RUN ON','WAT Yield','CP Yield','Yield gap','Device Mapping','Part No','EPI','BGBM',
+        headers = ['Lot no.','RUN ON','WAT Yield','CP Yield','Yield gap','Station','Device Mapping','Part No','EPI','BGBM',
                    ...PARAM_COLS, ...waferCols];
     } else {
         headers = ['Lot no.','RUN ON','Yield(%)','Device Mapping','Part No','EPI','BGBM',
@@ -1866,7 +1875,7 @@ function buildSummaryXLSX(rows, filenameOverride) {
 
     // Yellow cols: WAT Yield, CP Yield, Yield gap, Device Mapping (indices differ by mode)
     const yieldColIdx  = 2;  // always col 2
-    const devMapIdx    = hasCp ? 5 : 3;
+    const devMapIdx    = hasCp ? 6 : 3;
     const cpYieldIdx   = hasCp ? 3 : -1;
     const yieldGapIdx  = hasCp ? 4 : -1;
     const waferStartIdx = headers.length - 25;
@@ -1977,6 +1986,7 @@ function parseDailyReportArray(data) {
     const iLot   = headers.indexOf('Lot Num');
     const iTypeA = headers.indexOf('Type(A)');
     const iTypeMV = headers.indexOf('Type(mV)');
+    const iStation = headers.indexOf('Station');
     if (iLot < 0 || iTypeA < 0 || iTypeMV < 0)
         throw new Error('DailyReport must have columns: Lot Num, Type(A), Type(mV)');
     // Find CP Yield column: 'Initial CP yield (%)' is the correct name in this report
@@ -1997,7 +2007,8 @@ function parseDailyReportArray(data) {
         const typeA  = String(row[iTypeA] || '').trim();
         const typeMV = String(row[iTypeMV] || '').trim().replace(/MV$/i, 'mV');
         const cpYield = iYield >= 0 ? String(row[iYield] || '').trim() : '';
-        result.push({ lotNum, typeA, typeMV, cpYield });
+        const station = iStation >= 0 ? String(row[iStation] || '').trim() : '';
+        result.push({ lotNum, typeA, typeMV, cpYield, station });
     }
     return result;
 }
@@ -2071,6 +2082,7 @@ document.getElementById('btnGenerateCP').addEventListener('click', function() {
         cleanRow['WAT Yield']      = watYieldStr;
         cleanRow['CP Yield']       = cpYieldStr;
         cleanRow['Yield gap']      = yieldGap;
+        cleanRow['Station']        = drEntry ? (drEntry.station || '') : '';
         cleanRow['Device Mapping'] = deviceMapping;
         // Remove old 'Yield(%)' key so it doesn't conflict
         delete cleanRow['Yield(%)'];
@@ -2127,6 +2139,7 @@ document.getElementById('summaryFile').addEventListener('change', function(e) {
 function checkChartReady() {
     if (summaryData.length > 0) {
         updateDeviceDropdown();
+        updateStationDropdown();
         document.getElementById('deviceSelect').disabled = false;
         document.getElementById('btnGenerate').disabled = false;
         log("Chart UI ready.");
@@ -2143,21 +2156,44 @@ function updateDeviceDropdown() {
     if (uniqueDevices.length > 0) ds.disabled = false;
 }
 
+function updateStationDropdown() {
+    const ss = document.getElementById('stationSelect');
+    const stations = [...new Set(
+        summaryData.map(s => (s['Station'] || '').toString().trim()).filter(Boolean)
+    )].sort();
+    ss.innerHTML = '<option value="">-- All Stations --</option>';
+    stations.forEach(st => ss.add(new Option(st, st)));
+    ss.disabled = stations.length === 0;
+}
+
 document.getElementById('deviceSelect').addEventListener('change', function() {
+    refreshPartNoByFilters();
+});
+
+document.getElementById('stationSelect').addEventListener('change', function() {
+    refreshPartNoByFilters();
+});
+
+function refreshPartNoByFilters() {
     const ps = document.getElementById('partNoSelect');
     const saBtn = document.getElementById('btnSelectAll');
-    const device = this.value;
+    const device = document.getElementById('deviceSelect').value;
+    const station = document.getElementById('stationSelect').value;
     ps.innerHTML = '';
     if (!device) { ps.disabled = true; saBtn.disabled = true; return; }
     const fromMapping = mappingData.filter(m => m.Device === device).map(m => m.PartNo);
     const fromSummary = summaryData
-        .filter(s => (s['Device Mapping'] || s['Device'] || '').toString().trim() === device)
+        .filter(s => {
+            const devMatch = (s['Device Mapping'] || s['Device'] || '').toString().trim() === device;
+            const stMatch  = !station || (s['Station'] || '').toString().trim() === station;
+            return devMatch && stMatch;
+        })
         .map(s => (s['Part No'] || '').toString().trim()).filter(Boolean);
     const filteredParts = [...new Set([...fromMapping, ...fromSummary])].sort();
     filteredParts.forEach(p => ps.add(new Option(p, p)));
     ps.disabled = false; saBtn.disabled = false;
-    log(`Device: ${device} → ${filteredParts.length} Part Nos (mapping:${fromMapping.length} + summary:${fromSummary.length})`);
-});
+    log(`Device: ${device}, Station: ${station||'All'} → ${filteredParts.length} Part Nos`);
+}
 
 document.getElementById('btnSelectAll').addEventListener('click', function() {
     const ps = document.getElementById('partNoSelect');
@@ -2168,6 +2204,7 @@ document.getElementById('btnSelectAll').addEventListener('click', function() {
 
 document.getElementById('btnGenerate').addEventListener('click', function() {
     const dev = document.getElementById('deviceSelect').value;
+    const selectedStation = document.getElementById('stationSelect').value;
     const ps  = document.getElementById('partNoSelect');
     const selectedParts = [...ps.options].filter(o => o.selected).map(o => o.value);
     const yAxisCol = document.getElementById('yAxisSelect').value;
@@ -2175,7 +2212,7 @@ document.getElementById('btnGenerate').addEventListener('click', function() {
     const xMode = document.getElementById('xAxisSelect').value;
     const isTimeX = xMode === 'RUN_ON';
     if (!dev || selectedParts.length === 0) { alert("Please select a Device and at least one Part No."); return; }
-    log(`Generating chart for ${dev} / [${selectedParts.join(', ')}], X=${xMode}, Y-axis: ${yAxisCol}...`);
+    log(`Generating chart for ${dev} / Station:${selectedStation||'All'} / [${selectedParts.join(', ')}], X=${xMode}, Y-axis: ${yAxisCol}...`);
     const datasets = [];
     const legendChips = document.getElementById('legendChips');
     legendChips.innerHTML = '';
@@ -2207,9 +2244,10 @@ document.getElementById('btnGenerate').addEventListener('click', function() {
 
     selectedParts.forEach((part, idx) => {
         const matches = summaryData.filter(s => {
-            const deviceMatch = (s['Device Mapping']||s['Device']||"").trim() === dev;
-            const partMatch   = (s['Part No']||"").trim() === part;
-            return deviceMatch && partMatch;
+            const deviceMatch  = (s['Device Mapping']||s['Device']||"").trim() === dev;
+            const partMatch    = (s['Part No']||"").trim() === part;
+            const stationMatch = !selectedStation || (s['Station']||"").toString().trim() === selectedStation;
+            return deviceMatch && partMatch && stationMatch;
         });
         if (matches.length === 0) { log(`Warning: No records for ${dev}/${part}`); return; }
 
