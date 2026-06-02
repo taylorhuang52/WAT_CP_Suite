@@ -2322,9 +2322,39 @@ function parseDate(s) {
     return isNaN(d.getTime()) ? null : d;
 }
 
+function getAutoYScale(datasets, isYield) {
+    if (!isYield) return {};
+
+    const values = [];
+    datasets.forEach(ds => {
+        (ds.data || []).forEach(p => {
+            const y = Number(p && p.y);
+            if (Number.isFinite(y)) values.push(y);
+        });
+    });
+
+    if (values.length === 0) return {};
+
+    const rawMin = Math.min(...values);
+    const rawMax = Math.max(...values);
+    let min = rawMin;
+    let max = rawMax;
+    const span = rawMax - rawMin;
+    const pad = span === 0 ? Math.max(Math.abs(max) * 0.01, 0.5) : Math.max(span * 0.12, 0.5);
+
+    min -= pad;
+    max += pad;
+
+    return {
+        min: rawMin >= 0 ? Math.max(0, min) : min,
+        max: rawMax <= 120 ? Math.min(120, max) : max
+    };
+}
+
 function renderChart(datasets, deviceLabel, yLabel, isYield, isTimeX) {
     const ctx = document.getElementById('yieldChart').getContext('2d');
     if (chartInstance) chartInstance.destroy();
+    const yScaleCfg = getAutoYScale(datasets, isYield);
     const xScaleCfg = isTimeX
         ? { type: 'time', time: { unit: 'week' }, title: { display: true, text: 'RUN ON (Week)', font: { size: 12 } } }
         : { type: 'category', title: { display: true, text: 'Lot No', font: { size: 12 } }, ticks: { maxRotation: 45, minRotation: 30 } };
@@ -2350,7 +2380,7 @@ function renderChart(datasets, deviceLabel, yLabel, isYield, isTimeX) {
             },
             scales: {
                 x: xScaleCfg,
-                y: { min: isYield ? 0 : undefined, max: isYield ? 120 : undefined, title: { display: true, text: yLabel, font: { size: 12 } } }
+                y: { ...yScaleCfg, title: { display: true, text: yLabel, font: { size: 12 } } }
             }
         }
     });
@@ -3826,6 +3856,7 @@ function ulldParseDate(s) {
 function ulldRenderChart(datasets, yLabel, isTimeX, isYield) {
   const ctx = document.getElementById('ulldChart').getContext('2d');
   if (ulldChartInst) ulldChartInst.destroy();
+  const yScaleCfg = getAutoYScale(datasets, isYield);
 
   const xScaleCfg = isTimeX
     ? { type:'time', time:{unit:'week'}, title:{display:true, text:'RUN ON (Week)', font:{size:12}} }
@@ -3856,8 +3887,7 @@ function ulldRenderChart(datasets, yLabel, isTimeX, isYield) {
       scales: {
         x: xScaleCfg,
         y: {
-          min: isYield ? 0 : undefined,
-          max: isYield ? 120 : undefined,
+          ...yScaleCfg,
           title: { display:true, text:yLabel, font:{size:12} }
         }
       }
