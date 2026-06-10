@@ -1118,6 +1118,13 @@
       <div class="section-divider" style="border-top:1px solid #d8e4de; margin:10px 0 8px;"></div>
 
       <h2 style="margin-top:0;">Heatmap</h2>
+      <!-- Product model detected from test log -->
+      <div id="hmProductBanner" style="display:none;background:#e8f5f1;border:1px solid #7ecbbd;border-radius:5px;padding:5px 8px;margin-bottom:8px;font-size:11px;color:#1a5c50;">
+        <span style="font-weight:700;">📋 Product:</span>
+        <span id="hmProductModel" style="font-weight:700;color:#0e6655;margin-left:4px;"></span>
+        <span id="hmLimitCount" style="color:#5a8c80;margin-left:2px;font-size:10px;"></span>
+        <span style="color:#5a8c80;margin-left:6px;font-size:10px;">(auto-detected from test log)</span>
+      </div>
       <label for="hmTitle">Title</label>
       <input id="hmTitle" type="text" value="Wafer Heatmap">
       <label for="column">Parameter</label>
@@ -1126,11 +1133,11 @@
       <div id="presets"></div>
       <div class="hm-row">
         <div>
-          <label for="lo">Low</label>
+          <label for="lo" style="display:flex;align-items:center;gap:4px;">Low <span id="loLogBadge" style="display:none;font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 4px;font-weight:600;">from log</span></label>
           <input id="lo" type="number" step="any" value="0">
         </div>
         <div>
-          <label for="hi">High</label>
+          <label for="hi" style="display:flex;align-items:center;gap:4px;">High <span id="hiLogBadge" style="display:none;font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 4px;font-weight:600;">from log</span></label>
           <input id="hi" type="number" step="any" value="45">
         </div>
       </div>
@@ -2322,39 +2329,9 @@ function parseDate(s) {
     return isNaN(d.getTime()) ? null : d;
 }
 
-function getAutoYScale(datasets, isYield) {
-    if (!isYield) return {};
-
-    const values = [];
-    datasets.forEach(ds => {
-        (ds.data || []).forEach(p => {
-            const y = Number(p && p.y);
-            if (Number.isFinite(y)) values.push(y);
-        });
-    });
-
-    if (values.length === 0) return {};
-
-    const rawMin = Math.min(...values);
-    const rawMax = Math.max(...values);
-    let min = rawMin;
-    let max = rawMax;
-    const span = rawMax - rawMin;
-    const pad = span === 0 ? Math.max(Math.abs(max) * 0.01, 0.5) : Math.max(span * 0.12, 0.5);
-
-    min -= pad;
-    max += pad;
-
-    return {
-        min: rawMin >= 0 ? Math.max(0, min) : min,
-        max: rawMax <= 120 ? Math.min(120, max) : max
-    };
-}
-
 function renderChart(datasets, deviceLabel, yLabel, isYield, isTimeX) {
     const ctx = document.getElementById('yieldChart').getContext('2d');
     if (chartInstance) chartInstance.destroy();
-    const yScaleCfg = getAutoYScale(datasets, isYield);
     const xScaleCfg = isTimeX
         ? { type: 'time', time: { unit: 'week' }, title: { display: true, text: 'RUN ON (Week)', font: { size: 12 } } }
         : { type: 'category', title: { display: true, text: 'Lot No', font: { size: 12 } }, ticks: { maxRotation: 45, minRotation: 30 } };
@@ -2380,7 +2357,7 @@ function renderChart(datasets, deviceLabel, yLabel, isYield, isTimeX) {
             },
             scales: {
                 x: xScaleCfg,
-                y: { ...yScaleCfg, title: { display: true, text: yLabel, font: { size: 12 } } }
+                y: { min: isYield ? 0 : undefined, max: isYield ? 120 : undefined, title: { display: true, text: yLabel, font: { size: 12 } } }
             }
         }
     });
@@ -2444,6 +2421,121 @@ const hmEls = {
 let hmRecords = [];
 let hmHeaders = [];
 let fileBaseName = "wafer";
+// Metadata extracted from test log raw CSV (Production ID, test limits)
+let hmLogMeta = { productModel: null, limits: {} };
+
+// ── Parse metadata from raw test log CSV ─────────────────────────
+// dlog CSV structure (0-indexed lines):
+//   Lines 0-34 : file header  ("Production ID  : 50A_530mV_22U" ~ line 3)
+//   Line ~35   : "Sample  Pass  Pass%  Fail  Fail%  nnn  …"
+//   Line ~36   : blank
+//   Line ~37   : ",,,,Contact(1),Contact(2),…,IR0(8),DIRO(9),VF0(10),…"  ← item names
+//   Line ~38   : ",,,,V_Force_VF_50mA,Ohm_Force,…"                        ← condition/unit (text)
+//   Line ~39   : ",,,,2000,10,2000,10,,, 24, 70,100,255,24.5,24,400,…"   ← HighLimit  (row A)
+//   Line ~40   : ",,,,   0, 0,   0, 0, 5,20,  0,175, 20,19.5,  0, 0,…"  ← LowLimit   (row B)
+//   Line ~41+  : data rows start with digit (Serial#)
+//
+// Column names: "NAME(seq)" → strip "(seq)".
+// Limit rows are identified as lines that:
+//   • start with ≥2 leading commas
+//   • every non-empty cell is a valid number (integer or float, possibly negative)
+//   • do NOT contain any alphabetic characters
+// Order is preserved: first such row = HighLimit, second = LowLimit.
+function parseLogMeta(rawText) {
+  const meta = { productModel: null, limits: {} };
+  const lines = rawText.replace(/^\uFEFF/, "").split(/\r?\n/);
+
+  // ── 1. Production ID ──────────────────────────────────────────
+  for (let i = 0; i < Math.min(40, lines.length); i++) {
+    const m = lines[i].match(/Production\s+ID\s*:\s*(\S+)/i);
+    if (m) {
+      meta.productModel = m[1].trim().replace(/_\d+[A-Za-z]+$/, "");
+      break;
+    }
+  }
+
+  // ── 2. Find test-item column-name row ─────────────────────────
+  // The row contains "NAME(digits)" tokens like "IR0(8)", "Contact(1)".
+  let colHeaderIdx = -1;
+  let colNames = [];
+
+  for (let i = 25; i < Math.min(lines.length, 60); i++) {
+    if (/[A-Za-z_]\w*\(\d+\)/.test(lines[i])) {
+      colHeaderIdx = i;
+      colNames = lines[i].split(",").map(c =>
+        c.trim().replace(/\s*\(\d+\)\s*$/, "").trim()
+      );
+      break;
+    }
+  }
+
+  if (colHeaderIdx < 0 || !colNames.length) return meta;
+
+  // ── 3. Collect exactly the first two pure-numeric limit rows ──
+  // A "pure-numeric limit row":
+  //   - starts with ≥2 commas (leading empty cells for Serial/Site/Bin columns)
+  //   - contains NO letters at all (rules out condition/unit text rows)
+  //   - has at least one numeric value
+  function isPureNumericLimitRow(line) {
+    const t = line.replace(/\r$/, "");
+    if (!/^,{2,}/.test(t)) return false;       // must start with commas
+    if (/[A-Za-z]/.test(t)) return false;       // no letters allowed
+    if (!/[0-9]/.test(t)) return false;         // must have at least one digit
+    // Every non-empty cell must parse as a finite number
+    const cells = t.split(",");
+    for (const cell of cells) {
+      const v = cell.trim();
+      if (v === "") continue;                    // empty = no limit for this col
+      if (!Number.isFinite(parseFloat(v))) return false;
+    }
+    return true;
+  }
+
+  const limitRows = [];   // [hiRow cells[], loRow cells[]]
+
+  for (let i = colHeaderIdx + 1; i < Math.min(colHeaderIdx + 12, lines.length); i++) {
+    const raw = lines[i].replace(/\r$/, "");
+    if (!raw.trim()) continue;
+    if (/^\d/.test(raw)) break;                 // hit data rows → stop
+    if (isPureNumericLimitRow(raw)) {
+      limitRows.push(raw.split(","));
+      if (limitRows.length === 2) break;        // we only need high + low
+    }
+  }
+
+  if (limitRows.length < 1) return meta;
+
+  // Row order in dlog is always: [0] = HighLimit, [1] = LowLimit
+  const hiRow = limitRows[0];
+  const loRow = limitRows.length > 1 ? limitRows[1] : limitRows[0];
+
+  // ── 4. Map every named column to its [lo, hi] range ──────────
+  for (let ci = 0; ci < colNames.length; ci++) {
+    const name = colNames[ci];
+    if (!name || name.length < 2) continue;
+
+    const hiVal = parseFloat((hiRow[ci] || "").trim());
+    const loVal = parseFloat((loRow[ci] || "").trim());
+
+    const hiOk = Number.isFinite(hiVal);
+    const loOk = Number.isFinite(loVal);
+
+    if (!hiOk && !loOk) continue;   // no limit data at all for this column
+
+    if (hiOk && loOk) {
+      if (hiVal === loVal) continue; // degenerate range → skip
+      meta.limits[name] = [Math.min(loVal, hiVal), Math.max(loVal, hiVal)];
+    } else if (hiOk) {
+      // Only high limit: store as (null, hi) — rendered as one-sided
+      meta.limits[name] = [null, hiVal];
+    } else {
+      // Only low limit: store as (lo, null)
+      meta.limits[name] = [loVal, null];
+    }
+  }
+
+  return meta;
+}
 
 // ── ZIP Path Search ──────────────────────────────────────────────
 (function initZipSearch() {
@@ -2999,8 +3091,8 @@ hmEls.column.addEventListener("change", () => { applyDefaultTitle(); buildPreset
 hmEls.renderBtn.addEventListener("click", renderIfReady);
 hmEls.downloadBtn.addEventListener("click", downloadPng);
 hmEls.mode.addEventListener("change", renderIfReady);
-hmEls.lo.addEventListener("change", renderIfReady);
-hmEls.hi.addEventListener("change", renderIfReady);
+hmEls.lo.addEventListener("change", () => { updateRangeBadges(false); renderIfReady(); });
+hmEls.hi.addEventListener("change", () => { updateRangeBadges(false); renderIfReady(); });
 hmEls.title.addEventListener("change", renderIfReady);
 hmEls.selectAllBtn.addEventListener("click", () => setAllWafers(true));
 hmEls.selectNoneBtn.addEventListener("click", () => setAllWafers(false));
@@ -3030,6 +3122,18 @@ async function mergeZipCsv() {
         const csvEntries = entries.filter(e => e.name.toLowerCase().endsWith(".csv") && !e.isDirectory)
                                   .sort((a, b) => baseName(a.name).localeCompare(baseName(b.name)));
         if (!csvEntries.length) throw new Error("No CSV files found inside ZIP.");
+        // Parse metadata (Production ID, test limits) from the first CSV entry
+        try {
+          const firstRaw = await csvEntries[0].text();
+          hmLogMeta = parseLogMeta(firstRaw);
+          // Debug: log parsing result to console
+          console.log("[parseLogMeta] productModel:", hmLogMeta.productModel);
+          console.log("[parseLogMeta] limits found:", Object.keys(hmLogMeta.limits).length, hmLogMeta.limits);
+          updateProductBanner();
+        } catch(e) {
+          console.error("[parseLogMeta] error:", e);
+          hmLogMeta = { productModel: null, limits: {} };
+        }
         const out = [headerLine];
         let totalRows = 0;
         for (const entry of csvEntries) {
@@ -3058,7 +3162,9 @@ async function mergeZipCsv() {
             dt.items.add(mergedFile);
             hmEls.csvFile.files = dt.files;
             // Trigger load
-            hmEls.csvFile.dispatchEvent(new Event('change'));
+            const evt = new Event('change');
+            evt._fromMerge = true;
+            hmEls.csvFile.dispatchEvent(evt);
             setMergeStatus(`Done: ${csvEntries.length} CSV files, total ${totalRows.toLocaleString()} data rows. Auto-loaded ${zipBase}_merged.csv。`, false);
           } catch(e) {
             // DataTransfer may not be supported in all browsers, silent fail
@@ -3150,6 +3256,12 @@ function downloadText(name, text, type) {
 async function loadCsvFile(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
+    // Reset log metadata when loading a new CSV directly
+    // (metadata is only available from raw ZIP CSVs via mergeZipCsv)
+    if (!event._fromMerge) {
+      hmLogMeta = { productModel: null, limits: {} };
+      updateProductBanner();
+    }
     try {
         const text = await file.text();
         fileBaseName = file.name.replace(/\.[^.]+$/, "");
@@ -3243,18 +3355,86 @@ function populateWafers() {
 
 function buildPresets() {
     const col = selectedColumn();
-    const presets = presetsByColumn[col] || [["Auto from data", ...autoRange(col)]];
+    const rawLogLimits = hmLogMeta && hmLogMeta.limits && hmLogMeta.limits[col];
+    const hardcoded = presetsByColumn[col];
+    const productLabel = (hmLogMeta && hmLogMeta.productModel) ? hmLogMeta.productModel : "Test Log";
+
+    // Resolve one-sided limits: null means that bound wasn't in the log.
+    // Fill the missing bound with the actual data min/max so the range is still usable.
+    let logLimits = null;
+    if (rawLogLimits) {
+      const [rawLo, rawHi] = rawLogLimits;
+      const [dataLo, dataHi] = autoRange(col);
+      const resolvedLo = rawLo !== null ? rawLo : dataLo;
+      const resolvedHi = rawHi !== null ? rawHi : dataHi;
+      if (resolvedLo !== resolvedHi) logLimits = [resolvedLo, resolvedHi];
+    }
+
+    // Format number for display
+    const fmt = v => {
+      if (v === null || !Number.isFinite(v)) return "?";
+      if (Number.isInteger(v)) return String(v);
+      return v.toFixed(2).replace(/\.?0+$/, "");
+    };
+
+    // Build preset list
+    let presets = [];
+    if (logLimits) {
+      presets.push([`📋 ${productLabel}`, logLimits[0], logLimits[1]]);
+    }
+    if (hardcoded && hardcoded.length) {
+      presets = presets.concat(hardcoded);
+    }
+    // Always provide "Auto from data" as last fallback/override option
+    if (!logLimits && (!hardcoded || !hardcoded.length)) {
+      presets.push(["Auto from data", ...autoRange(col)]);
+    } else if (logLimits && (!hardcoded || !hardcoded.length)) {
+      presets.push(["Auto from data", ...autoRange(col)]);
+    }
+
     hmEls.presets.innerHTML = "";
     presets.forEach(([name, lo, hi], i) => {
+        const isLogPreset = i === 0 && !!logLimits;
         const label = document.createElement("label");
         label.className = "preset";
         const radio = document.createElement("input");
         radio.type = "radio"; radio.name = "preset"; radio.checked = i === 0;
-        radio.addEventListener("change", () => { hmEls.lo.value = lo; hmEls.hi.value = hi; renderIfReady(); });
-        label.append(radio, document.createTextNode(`${name} (${lo}-${hi})`));
+        radio.addEventListener("change", () => {
+          hmEls.lo.value = lo;
+          hmEls.hi.value = hi;
+          updateRangeBadges(isLogPreset);
+          renderIfReady();
+        });
+        label.append(radio, document.createTextNode(`${name} (${fmt(lo)}–${fmt(hi)})`));
         hmEls.presets.appendChild(label);
     });
-    hmEls.lo.value = presets[0][1]; hmEls.hi.value = presets[0][2];
+    hmEls.lo.value = presets[0][1];
+    hmEls.hi.value = presets[0][2];
+    updateRangeBadges(!!logLimits);
+}
+
+function updateRangeBadges(fromLog) {
+  const loBadge = document.getElementById("loLogBadge");
+  const hiBadge = document.getElementById("hiLogBadge");
+  if (loBadge) loBadge.style.display = fromLog ? "inline" : "none";
+  if (hiBadge) hiBadge.style.display = fromLog ? "inline" : "none";
+}
+
+function updateProductBanner() {
+  const banner = document.getElementById("hmProductBanner");
+  const modelEl = document.getElementById("hmProductModel");
+  const countEl = document.getElementById("hmLimitCount");
+  if (!banner || !modelEl) return;
+  if (hmLogMeta && (hmLogMeta.productModel || Object.keys(hmLogMeta.limits).length > 0)) {
+    modelEl.textContent = hmLogMeta.productModel || "(unknown)";
+    if (countEl) {
+      const n = Object.keys(hmLogMeta.limits).length;
+      countEl.textContent = n > 0 ? `，${n} 個測試項上下限已讀取` : "";
+    }
+    banner.style.display = "block";
+  } else {
+    banner.style.display = "none";
+  }
 }
 
 function autoRange(col) {
@@ -3265,7 +3445,11 @@ function autoRange(col) {
 
 function applyDefaultTitle() {
     const lot = fileBaseName.split("_")[0] || "Wafer";
-    hmEls.title.value = `${lot} ${selectedColumn() || "Heatmap"} Wafer Heatmap`;
+    const productModel = hmLogMeta && hmLogMeta.productModel ? hmLogMeta.productModel : "";
+    const col = selectedColumn() || "Heatmap";
+    hmEls.title.value = productModel
+      ? `${lot} ${col} Wafer Heatmap (${productModel})`
+      : `${lot} ${col} Wafer Heatmap`;
 }
 
 function enableHmControls(enabled) {
@@ -3856,7 +4040,6 @@ function ulldParseDate(s) {
 function ulldRenderChart(datasets, yLabel, isTimeX, isYield) {
   const ctx = document.getElementById('ulldChart').getContext('2d');
   if (ulldChartInst) ulldChartInst.destroy();
-  const yScaleCfg = getAutoYScale(datasets, isYield);
 
   const xScaleCfg = isTimeX
     ? { type:'time', time:{unit:'week'}, title:{display:true, text:'RUN ON (Week)', font:{size:12}} }
@@ -3887,7 +4070,8 @@ function ulldRenderChart(datasets, yLabel, isTimeX, isYield) {
       scales: {
         x: xScaleCfg,
         y: {
-          ...yScaleCfg,
+          min: isYield ? 0 : undefined,
+          max: isYield ? 120 : undefined,
           title: { display:true, text:yLabel, font:{size:12} }
         }
       }
